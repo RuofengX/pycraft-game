@@ -1,6 +1,8 @@
 import unittest
 import time
 from objprint import op  # type:ignore
+from pprint import pprint
+
 from world import Continuum, Vector
 
 
@@ -52,7 +54,7 @@ class TestWorld(unittest.TestCase):
         self.ct = Continuum()
         self.test_char = self.ct.new_character(pos=Vector(0, 0, 0))
         self.test_char2 = self.ct.new_character(pos=Vector(10, 0, 0))
-        self.test_char2.velocity = Vector(-0.001, 0, 0)
+        self.test_char2.velocity = Vector(-3, -4, 0)
 
     @unittest.skip("passed")
     def test_get_entity(self):
@@ -76,6 +78,28 @@ class TestWorld(unittest.TestCase):
             ls = self.ct.get_character_nearby(self.test_char, 1)
             if ls:
                 op(ls)
+
+    def test_vector_sub(self):
+        assert Vector(0, 0, 0) - Vector(10, 0, 0) == Vector(-10, 0, 0)
+
+    @unittest.skip("passed")
+    def test_distance_when_running(self):
+        self.ct.start()
+        while 1:
+            pprint(
+                {
+                    "ticks": self.ct.age,
+                    "p1": self.test_char.position,
+                    "p2": self.test_char2.position,
+                    "lineral_distance": self.ct._get_lineal_distance(
+                        self.test_char, self.test_char2
+                    ),
+                    "natural_distance": self.ct._get_natural_distance(
+                        self.test_char, self.test_char2
+                    ),
+                }
+            )
+            time.sleep(0.5)
 
     def tearDown(self):
         self.ct.stop()

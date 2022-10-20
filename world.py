@@ -40,7 +40,7 @@ class Vector(namedtuple("Vector", ["x", "y", "z"])):
         return Vector(self.x + other.x, self.y + other.y, self.z + other.z)
 
     def __sub__(self, other):
-        return Vector(self.x - other.y, self.x - other.y, self.z - other.z)
+        return Vector(self.x - other.x, self.y - other.y, self.z - other.z)
 
     def length(self):
         return sqrt(self.x**2 + self.y**2 + self.z**2)
@@ -128,7 +128,7 @@ class World(Entity):
 
         for ent in self.entity_dict.values():
             if ent != char:  # Pass char itself
-                dis = self._get_lineral_distance(char, ent)
+                dis = self._get_lineal_distance(char, ent)
                 if dis is not None:
                     if dis - radius < 0:
                         rtn.append(ent)
@@ -149,7 +149,7 @@ class World(Entity):
 
         return None
 
-    def _get_lineral_distance(
+    def _get_lineal_distance(
         self, char1: Character, char2: Character
     ) -> Optional[float]:
         """Return the distance but in sum(delta x, y, z) like,
