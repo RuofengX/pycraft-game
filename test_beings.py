@@ -68,12 +68,6 @@ class TestMsgMixin(unittest.TestCase):
         time.sleep(1)
         assert self.msg1.msg_inbox == ['test, radius=10', 'test, radius=1000']
 
-    def test_msg_send_moving(self):
-        self.msg0.msg_send(self.msg2.eid, 'test moving, radius=1', radius=1)
-        self.msg2._report_flag = True
-        self.ct.start()
-        time.sleep(0.1)
-
 
 if __name__ == "__main__":
     unittest.main()

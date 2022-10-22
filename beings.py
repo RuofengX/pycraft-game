@@ -1,23 +1,63 @@
-"""Every being contains their 'function' module.
-Those modules are provided with Mixin classes.
-Each Mixin act as a set of ports, like Interface in Java.
+"""
+# beings.py
+
+## Implements multiple functions for entities in the pycraft
+
+Every being or entity have their own property or method,
+but some of these functions are same. So we write those same
+reuseable function as some mixin modules.
+Each mixin calss act as a set of ports, like Interface in Java.
+
+## Name regulation
 
 Mixin modules named as <Name>Mixin,
 variables named as <module_name>_<variable_name>,
-methods named as <module_name>_<method_name>.
+methods named as <module_name>_<method_name>,
+If a mixin module needs some public type or utils, write it as a sepreate mixin,
+and name them as <Name><Util_name>. Also notice that only mixin class would
+be inherit to the final entity type.
 
-Instance will initiate first by default class, e.g. Character, then the Mixin class.
-Entity instance will run every method named after with '_tick' in every tick.
+For example:
+    '''python
+
+    class MsgPayload():
+        ...
+
+
+    class MsgMixin(Character):
+        def __init__(self):
+            self.msg_inbox = []
+
+        def msg_send(self):
+            ...
+
+    '''
+
+## The 'xxx_tick' method
+
+Entity instance will run every method named after '_tick' in every tick.
 
 The '_tick' method must have two positional arguments, which is:
-1. instance itself;
+1. instance itself, also know as `self`;
 2. (Optional)the belonging of this instance. In most case is the Continuum instance.
-And return None.
+
+'_tick' function return None.
+
+## Inherit order
+
+If a mixin module(class) is only available to some specific entity type, inherit it,
+like `class MsgMixin(Character)` means that MsgMixin could only apply to the type
+of `Character`.
+
+Entity instance will initiate first by mixin classes, then the entity class.
+For example, an entity instance with MsgMixin and Character should wrote in these:
+`class CharacterWithMsgMixin(MsgMixin, Character)`
+
 """
+
 from typing import List, TypeGuard, Type
 from enum import Enum
 from threading import Lock
-from collections import OrderedDict
 from dataclasses import dataclass
 
 from objprint import op  # type:ignore
@@ -48,54 +88,51 @@ class MsgInboxMixin(Character):
     A entity whit MsgInbox must have an position, or msg sent to it will always failure.
     """
 
-    class MsgStatus(Enum):
-        """Enum of MsgStatus"""
-
-        PENDING = "Msg is in outbox and waiting for next msg_tick."
-        SENT = "Msg is successfuly sent to target."
-        NO_INBOX = "Target is found in send-radius, \
-            but target does not have property msg_inbox."
-        NOT_FOUND = (
-            "Target is not found in send radius. Ensure your target_id is correct."
-        )
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.msg_inbox: List[str] = []
 
 
+class MsgStatus(Enum):
+    """Enum of MsgStatus"""
+
+    PENDING = "Msg is in outbox and waiting for next msg_tick."
+    SENT = "Msg is successfuly sent to target."
+    NO_INBOX = "Target is found in send-radius, \
+        but target does not have property msg_inbox."
+    NOT_FOUND = "Target is not found in send radius. Ensure your target_id is correct."
+
+
+@dataclass
+class MsgPayload:
+    """MsgPayload is a namedtuple with 4 tags: target, content, radius, result.
+
+    MsgPayload is a namedtuple with 4 tags: target, content, radius, result.
+    MsgPayload is only used in msg_outbox stack.
+    """
+
+    target_eid: int
+    content: str
+    radius: float
+    result: MsgStatus = MsgStatus.PENDING
+
+    def status_update(self, status: MsgStatus):
+        self.result = status
+
+
 class MsgMixin(MsgInboxMixin, Character):
-    # TODO: test needed
     """MsgMixin is a module provided basic message of an entity.
 
     Like a visiable-light shape of a thing in real world.
 
     It provides a basic level control of send & receive msg.
     Extra limits and restricts should be implemented on higher level class.
-
-    MsgPayload is a namedtuple with 4 tags: target, content, radius, result.
-    MsgPayload is only used in msg_outbox stack.
     """
-
-    @dataclass
-    class MsgPayload(OrderedDict):
-        """MsgPayload is a namedtuple with 4 tags: target, content, radius, result.
-
-        MsgPayload is only used in msg_outbox stack.
-        """
-
-        target_eid: int
-        content: str
-        radius: float
-        result: MsgInboxMixin.MsgStatus = MsgInboxMixin.MsgStatus.PENDING
-
-        def status_update(self, status: MsgInboxMixin.MsgStatus):
-            self.result = status
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.msg_name = "<Not Set>"
-        self.msg_outbox: List[MsgMixin.MsgPayload] = []
+        self.msg_outbox: List[MsgPayload] = []
         self.__msg_outbox_lock = Lock()
 
     def msg_send(self, target_eid: int, content: str, radius: float) -> None:
@@ -104,9 +141,16 @@ class MsgMixin(MsgInboxMixin, Character):
 
         Message will be limited in radius.
         """
-        payload = self.MsgPayload(target_eid=target_eid, content=content, radius=radius)
+        payload = MsgPayload(target_eid=target_eid, content=content, radius=radius)
         with self.__msg_outbox_lock:
             self.msg_outbox.append(payload)
+
+    def msg_send_ensure(
+        self, target_eid: int, content: str, radius: float, max_try: int = 0
+    ):
+        """Try max_try times or until msg is sent"""
+        try_times = 0
+
 
     @classmethod
     def msg_target_has_inbox(cls, target: Character) -> TypeGuard[Type[MsgInboxMixin]]:
@@ -116,7 +160,7 @@ class MsgMixin(MsgInboxMixin, Character):
     def msg_tick(self, belong: World) -> None:
         with self.__msg_outbox_lock:
             for p in self.msg_outbox:
-                if p.result is self.MsgStatus.PENDING:
+                if p.result is MsgStatus.PENDING:
                     """Only send msg pending"""
                     if belong.get_entity(
                         eid=p.target_eid
@@ -125,7 +169,7 @@ class MsgMixin(MsgInboxMixin, Character):
                         dis = belong._get_natural_distance(p.target_eid, self)
 
                         if dis is None:
-                            p.status_update(self.MsgStatus.NOT_FOUND)
+                            p.status_update(MsgStatus.NOT_FOUND)
                             return
 
                         if dis <= p.radius:
@@ -134,10 +178,10 @@ class MsgMixin(MsgInboxMixin, Character):
                             if self.msg_target_has_inbox(target):  # duck type
                                 target.msg_inbox.append(p.content)
 
-                                p.status_update(self.MsgStatus.SENT)
+                                p.status_update(MsgStatus.SENT)
                             else:
-                                p.status_update(self.MsgStatus.NO_INBOX)
+                                p.status_update(MsgStatus.NO_INBOX)
                         else:
-                            p.status_update(self.MsgStatus.NOT_FOUND)
+                            p.status_update(MsgStatus.NOT_FOUND)
                     else:
-                        p.status_update(self.MsgStatus.NOT_FOUND)
+                        p.status_update(MsgStatus.NOT_FOUND)
