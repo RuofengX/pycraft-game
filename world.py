@@ -2,10 +2,9 @@ from __future__ import annotations
 from math import sqrt
 from collections import namedtuple
 from threading import Thread, Lock
-from typing import Dict, Optional, List, Generic, TypeVar, Type
+from typing import Dict, Optional, List, TypeVar, Type
 
 from pprint import pprint
-from objprint import op  # type:ignore
 
 
 class Entity:
@@ -32,7 +31,8 @@ class Entity:
 
     def report(self):
         """Report self, for logging or debuging useage."""
-        op(self)
+        if self.age % 20 == 0:
+            pprint(self.msg_inbox)
 
 
 Entities = TypeVar("Entities", bound=Type[Entity])
@@ -60,7 +60,10 @@ class Vector(namedtuple("Vector", ["x", "y", "z"])):
 
 
 class Character(Entity):
-    """Stand for every character, belongs to a world"""
+    """Stand for every character, belongs to a world
+
+    All the entity in the world is instance of character.
+    """
 
     def __init__(self, eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0)):
         super().__init__(eid=eid)
@@ -69,18 +72,20 @@ class Character(Entity):
         self.acceleration = Vector(0, 0, 0)
 
     def report(self):
-        pprint(
-            {
-                "type": self.__class__.__name__,
-                "positon": self.position,
-                "velocity": self.velocity,
-                "acceleration": self.acceleration,
-            }
-        )
+        super().report()
+        if self.age % 20 == 0:
+            pprint(
+                {
+                    "type": self.__class__.__name__,
+                    "positon": self.position,
+                    "velocity": self.velocity,
+                    "acceleration": self.acceleration,
+                }
+            )
 
     def tick(self, belong: World):  # type:ignore
         """Character has position, velocity and acceleration"""
-        super().tick()
+        super().tick(belong=belong)
 
         # Velocity will keep changing the position of a entity
         if not self.velocity.is_zero():
@@ -94,7 +99,7 @@ class Character(Entity):
             self.acceleration = Vector.zero()
 
 
-class World(Entity, Generic[Entities]):
+class World(Entity):
     """The container of a set of beings"""
 
     def __init__(self) -> None:
@@ -110,7 +115,7 @@ class World(Entity, Generic[Entities]):
         return self.entity_count
 
     def tick(self, belong=None) -> None:
-        super().tick()
+        super().tick(belong=belong)
         for ent in self.entity_dict.values():
             ent.tick(belong=self)
 

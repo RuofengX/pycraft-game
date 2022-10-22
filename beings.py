@@ -14,8 +14,11 @@ The '_tick' method must have two positional arguments, which is:
 2. (Optional)the belonging of this instance. In most case is the Continuum instance.
 And return None.
 """
-from collections import namedtuple
 from typing import List, TypeGuard, Type
+from enum import Enum
+from threading import Lock
+from collections import OrderedDict
+from dataclasses import dataclass
 
 from objprint import op  # type:ignore
 
@@ -37,6 +40,25 @@ class DebugMixin:
 
 
 class MsgInboxMixin(Character):
+    """MsgInboxMixin provides a basic inbox function and a static status enum.
+
+    An entity could inheritage this mixin to gain the abiliaty for receiving msg.
+    Or, like a duck type, if an entity have msg_inbox property, it could receive msg.
+
+    A entity whit MsgInbox must have an position, or msg sent to it will always failure.
+    """
+
+    class MsgStatus(Enum):
+        """Enum of MsgStatus"""
+
+        PENDING = "Msg is in outbox and waiting for next msg_tick."
+        SENT = "Msg is successfuly sent to target."
+        NO_INBOX = "Target is found in send-radius, \
+            but target does not have property msg_inbox."
+        NOT_FOUND = (
+            "Target is not found in send radius. Ensure your target_id is correct."
+        )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.msg_inbox: List[str] = []
@@ -49,59 +71,73 @@ class MsgMixin(MsgInboxMixin, Character):
     Like a visiable-light shape of a thing in real world.
 
     It provides a basic level control of send & receive msg.
-    More limits and restricts should be implemented on higher level class.
+    Extra limits and restricts should be implemented on higher level class.
 
     MsgPayload is a namedtuple with 4 tags: target, content, radius, result.
     MsgPayload is only used in msg_outbox stack.
     """
 
-    class MsgPayload(namedtuple("MsgPayload", "target content radius result")):
+    @dataclass
+    class MsgPayload(OrderedDict):
         """MsgPayload is a namedtuple with 4 tags: target, content, radius, result.
 
         MsgPayload is only used in msg_outbox stack.
         """
 
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self._replace(result="PENDING")
+        target_eid: int
+        content: str
+        radius: float
+        result: MsgInboxMixin.MsgStatus = MsgInboxMixin.MsgStatus.PENDING
 
-        def update(self, status: str):
-            self._replace(result=status)
+        def status_update(self, status: MsgInboxMixin.MsgStatus):
+            self.result = status
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.msg_name = "<Not Set>"
         self.msg_outbox: List[MsgMixin.MsgPayload] = []
+        self.__msg_outbox_lock = Lock()
 
-    def msg_send(self, eid: int, content: str, radius: float):
-        """Send message to other entity, Other entity must have msg_mixin.
-        Message will be limited in radius."""
-        payload = self.MsgPayload(
-            target=eid, content=content, radius=radius, result="PENDING"
-        )
-        self.msg_outbox.append(payload)
+    def msg_send(self, target_eid: int, content: str, radius: float) -> None:
+        """Send message to other entity with target_eid,
+        target entity must have msg_mixin.
 
-    def msg_target_has_inbox(self, target: Character) -> TypeGuard[Type[MsgInboxMixin]]:
+        Message will be limited in radius.
+        """
+        payload = self.MsgPayload(target_eid=target_eid, content=content, radius=radius)
+        with self.__msg_outbox_lock:
+            self.msg_outbox.append(payload)
+
+    @classmethod
+    def msg_target_has_inbox(cls, target: Character) -> TypeGuard[Type[MsgInboxMixin]]:
         """Check target character has inbox"""
         return hasattr(target, "msg_inbox")
 
-    def msg_tick(self, belong: World):
-        for payload in self.msg_outbox:
-            target_eid, content, radius, result = payload
-            if result in ["PENDING", "NOT_FOUND"]:
-                """Only send msg pending"""
-                if belong.get_entity(eid=target_eid):
-                    """Check target exists silent"""
-                    dis = belong._get_natural_distance(target_eid, self)
-                    if dis <= radius:
-                        """Only send msg in radius"""
-                        target = belong.entity_dict[target_eid]
-                        if self.msg_target_has_inbox(target):  # duck type
-                            target.msg_inbox.append(content)
-                            payload.update("SENT")
+    def msg_tick(self, belong: World) -> None:
+        with self.__msg_outbox_lock:
+            for p in self.msg_outbox:
+                if p.result is self.MsgStatus.PENDING:
+                    """Only send msg pending"""
+                    if belong.get_entity(
+                        eid=p.target_eid
+                    ):  # Entity in World.entity_dict is always a Character
+                        """Check target exists silent"""
+                        dis = belong._get_natural_distance(p.target_eid, self)
+
+                        if dis is None:
+                            p.status_update(self.MsgStatus.NOT_FOUND)
+                            return
+
+                        if dis <= p.radius:
+                            """Only send msg in radius"""
+                            target = belong.entity_dict[p.target_eid]
+                            if self.msg_target_has_inbox(target):  # duck type
+                                target.msg_inbox.append(p.content)
+
+                                p.status_update(self.MsgStatus.SENT)
+                            else:
+                                p.status_update(self.MsgStatus.NO_INBOX)
                         else:
-                            payload.update("NO_INBOX")
+                            p.status_update(self.MsgStatus.NOT_FOUND)
                     else:
-                        payload.update("NOT_FOUND")
-                else:
-                    payload.update("NOT_FOUND")
+                        p.status_update(self.MsgStatus.NOT_FOUND)

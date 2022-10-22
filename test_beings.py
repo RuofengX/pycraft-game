@@ -4,7 +4,7 @@ import time
 from objprint import op  # type:ignore
 from pprint import pprint
 
-from world import Continuum, Vector, Character
+from world import Continuum, Vector, Character, Entity
 from beings import DebugMixin, MsgMixin
 
 
@@ -33,23 +33,46 @@ class TestDebugMixin(unittest.TestCase):
         self.ct.stop()
 
 
-class MsgEntity(Character, MsgMixin):
+class MsgEntity(MsgMixin, Character):
     pass
 
 
 class TestMsgMixin(unittest.TestCase):
     def setUp(self):
         self.ct = Continuum()
-        self.ent0 = self.ct.new_entity(
-            cls=MsgEntity, pos=Vector(0, 0, 0), velo=Vector(1, 0, 0)
+        self.ent0 = self.ct.new_entity(cls=Entity)
+        self.msg0 = self.ct.new_entity(
+            cls=MsgEntity, pos=Vector(0, 0, 0), velo=Vector(0, 0, 0)
         )
-        self.db_ent._report_flag = True
+        self.msg1 = self.ct.new_entity(
+            cls=MsgEntity, pos=Vector(10, 0, 0), velo=Vector(0, 0, 0)
+        )
+        self.msg2 = self.ct.new_entity(
+            cls=MsgEntity, pos=Vector(10, 0, 0), velo=Vector(-0.1, 0, 0)
+        )
 
     def tearDown(self):
         self.ct.stop()
 
-    def test_send_msg(self):
+    def test_msg_duck_type(self):
+        assert MsgMixin.msg_target_has_inbox(self.ent0) is False
+        self.ent0.msg_inbox = []
+        assert MsgMixin.msg_target_has_inbox(self.ent0) is True
+        assert MsgMixin.msg_target_has_inbox(self.msg0)
 
+    def test_msg_send(self):
+        self.ct.start()
+        self.msg0.msg_send(self.msg1.eid, 'test, radius=0.001', 0.001)
+        self.msg0.msg_send(self.msg1.eid, 'test, radius=10', 10)
+        self.msg0.msg_send(self.msg1.eid, 'test, radius=1000', 1000)
+        time.sleep(1)
+        assert self.msg1.msg_inbox == ['test, radius=10', 'test, radius=1000']
+
+    def test_msg_send_moving(self):
+        self.msg0.msg_send(self.msg2.eid, 'test moving, radius=1', radius=1)
+        self.msg2._report_flag = True
+        self.ct.start()
+        time.sleep(0.1)
 
 
 if __name__ == "__main__":
