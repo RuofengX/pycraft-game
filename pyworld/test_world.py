@@ -3,7 +3,7 @@ import time
 from objprint import op  # type:ignore
 from pprint import pprint
 
-from world import Continuum, Vector
+from .world import Continuum, Vector
 
 
 class TestCharacter(unittest.TestCase):

@@ -5,7 +5,7 @@ from objprint import op  # type:ignore
 from pprint import pprint
 
 from .world import Continuum, Vector, Character, Entity
-from .beings import DebugMixin, MsgMixin
+from .modules import DebugMixin, MsgMixin
 
 
 class DebugEntity(DebugMixin, Character):
