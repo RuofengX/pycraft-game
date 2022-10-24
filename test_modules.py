@@ -5,7 +5,7 @@ from objprint import op  # type:ignore
 from pprint import pprint
 
 from pyworld.world import Continuum, Vector, Character, Entity
-from pyworld.modules import DebugMixin, MsgMixin
+from pyworld.modules import DebugMixin, MsgMixin, CargoMixin, Item
 
 
 class DebugEntity(DebugMixin, Character):
@@ -74,6 +74,61 @@ class TestMsgMixin(unittest.TestCase):
         self.ct.start()
         time.sleep(0.1)
         assert self.msg2.msg_inbox == [b"test, ensure"]
+
+
+class CargoEntity(CargoMixin, Character):
+    pass
+
+
+class OreItem(Item):
+    pass
+
+
+class TestCargo(unittest.TestCase):
+    def setUp(self):
+        self.ct = Continuum()
+        self.ent0 = self.ct.new_entity(cls=Entity)
+        self.crg0 = self.ct.new_entity(
+            cls=CargoEntity,
+            pos=Vector(0, 0, 0),
+            cargo_max_slots=10
+        )
+        self.crg1 = self.ct.new_entity(
+            cls=CargoEntity,
+            pos=Vector(10, 0, 0),
+            cargo_max_slots=100
+        )
+        self.crg2 = self.ct.new_entity(
+            cls=CargoEntity,
+            pos=Vector(10, 0, 0),
+            cargo_max_slots=1
+        )
+
+    def tearDown(self):
+        self.ct.stop()
+
+    def test_cargo_add_stack(self):
+        self.crg0._report_flag = True
+        self.crg0.cargo_add_itemstack(OreItem().to_stack())
+        assert self.crg0.cargo_list == [OreItem().to_stack()]
+
+    def test_cargo_max_slot(self):
+        self.crg0._report_flag = True
+        self.ct.start()
+
+        self.crg0.cargo_add_itemstack(OreItem().to_stack())
+        assert self.crg0.cargo_has_slot()
+
+        for i in range(8):
+            self.crg0.cargo_add_itemstack(OreItem().to_stack())
+        assert self.crg0.cargo_has_slot()
+
+        self.crg0.cargo_add_itemstack(OreItem().to_stack())
+        assert not self.crg0.cargo_has_slot()
+
+        time.sleep(1)
+
+    # TODO: other test
 
 
 if __name__ == "__main__":

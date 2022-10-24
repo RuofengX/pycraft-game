@@ -1,30 +1,37 @@
 from __future__ import annotations
 from typing import List, Optional
 from dataclasses import dataclass
+from threading import Lock
 
-from pyworld.world import Character, Entity
+from pyworld.world import Character
 
 
 @dataclass
-class Item(Entity):
-    """Non-Character entity.
+class Item():
+    """Only used in cargo system.
 
-    No position related thing.
-    Still needs to be create by a world."""
+    Like entity, item also has 'tick' method.
+    Item could only exist in a cargo.
+    """
+    # TODO: Add item entity so that item could exist in continuum.
+
     def __post_init__(self):
-        self.item_name = self.__class__.__name__
-        self.item_type = self.__class__
+        self.item_name: str = self.__class__.__name__
+        self.item_type: type = self.__class__
 
     def to_stack(self) -> ItemStack:
         """Use self to create a itemstack."""
         return ItemStack([self])
 
+    def tick(self, belong: CargoMixin):
+        pass
+
 
 @dataclass
-class ItemStack():
+class ItemStack:
     """One virtual container"""
     item_list: List[Item]
-    item_name: str = 'Item'
+    item_name: str = 'None'
 
     def __post_init__(self):
         self.item_name = str(self.item_list[0].item_name)
@@ -35,6 +42,10 @@ class ItemStack():
 
     def __iter__(self) -> List[Item]:
         return self.item_list
+
+    def tick(self, belong: CargoMixin) -> None:
+        for item in self.item_list:
+            item.tick(belong=belong)
 
 
 class CargoMixin(Character):
@@ -48,8 +59,8 @@ class CargoMixin(Character):
         super().__init__(*args, **kwargs)
         self.cargo_list: List[ItemStack] = []
         self.cargo_max_slots = cargo_max_slots
+        self.__cargo_lock = Lock()
 
-    @property
     def cargo_has_slot(self) -> bool:
         """Return the cargo wether has empty space"""
         if self.cargo_max_slots < 0:  # minus zero slots always True
@@ -64,23 +75,28 @@ class CargoMixin(Character):
         """Use this method to add item stack onto one's cargo.
 
         Return True if success."""
-        if self.cargo_has_slot:
-            self.cargo_list.append(item_stack)
-            return True
-        else:
-            return False
-
-    def cargo_release_itemstack(self, index: int) -> ItemStack:
-        return self.cargo_list.pop(index)
+        with self.__cargo_lock:
+            if self.cargo_has_slot():
+                self.cargo_list.append(item_stack)
+                return True
+            else:
+                return False
 
     def cargo_pick_itemstack(self, item_name: str) -> Optional[ItemStack]:
         """Return the first itemstack that match the item_name.
         Return None if no matching."""
-        for i in range(len(self.cargo_list)):
-            stack = self.cargo_list[i]
-            if stack.item_name == item_name:
-                return stack
-        return None
+        with self.__cargo_lock:
+            for i in range(len(self.cargo_list)):
+                stack = self.cargo_list[i]
+                if stack.item_name == item_name:
+                    return stack
+            return None
+
+    def cargo_tick(self, belong: Character):
+        """Tick every itemstack and item."""
+        with self.__cargo_lock:
+            for itemstack in self.cargo_list:
+                itemstack.tick(belong=self)
 
 
 class BatteryMixin(Character):

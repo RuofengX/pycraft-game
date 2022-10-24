@@ -3,8 +3,9 @@ from math import sqrt
 from collections import namedtuple
 from threading import Thread, Lock
 from typing import Dict, Optional, List, TypeVar, Type
-
 from pprint import pprint
+
+from objprint import op  # type: ignore
 
 
 class Entity:
@@ -35,9 +36,9 @@ class Entity:
                 getattr(self, func)(belong=belong)
 
     def report(self):
-        """Report self, for logging or debuging useage."""
+        """Report self, for logging or debuging usage."""
         if self.age % 20 == 0:
-            pprint(self.msg_inbox)
+            op(self)
 
 
 Entities = TypeVar("Entities", bound=Type[Entity])
@@ -78,15 +79,7 @@ class Character(Entity):
 
     def report(self):
         super().report()
-        if self.age % 20 == 0:
-            pprint(
-                {
-                    "type": self.__class__.__name__,
-                    "positon": self.position,
-                    "velocity": self.velocity,
-                    "acceleration": self.acceleration,
-                }
-            )
+        pass
 
     def tick(self, belong: World):  # type:ignore
         """Character has position, velocity and acceleration"""
@@ -240,6 +233,7 @@ class Continuum(World, Thread):
         # self.start()
 
     def report(self):
+        """Override default report method."""
         pprint(
             {
                 "age": self.age,
