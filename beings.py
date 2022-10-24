@@ -59,6 +59,7 @@ from typing import List, TypeGuard, Type
 from enum import Enum
 from threading import Lock
 from dataclasses import dataclass
+import uuid
 
 from objprint import op  # type:ignore
 
@@ -101,6 +102,8 @@ class MsgStatus(Enum):
     NO_INBOX = "Target is found in send-radius, \
         but target does not have property msg_inbox."
     NOT_FOUND = "Target is not found in send radius. Ensure your target_id is correct."
+    ENSURE = "Msg is marked as ensure, will always try to send at every tick, \
+        until set to SENT."
 
 
 @dataclass
@@ -116,8 +119,15 @@ class MsgPayload:
     radius: float
     result: MsgStatus = MsgStatus.PENDING
 
+    def __post_init__(self):
+        self.msg_id = uuid.uuid4().int
+        self.try_times : int = 0
+
     def status_update(self, status: MsgStatus):
         self.result = status
+
+    def __hash__(self) -> int:
+        return self.msg_id
 
 
 class MsgMixin(MsgInboxMixin, Character):
@@ -135,22 +145,32 @@ class MsgMixin(MsgInboxMixin, Character):
         self.msg_outbox: List[MsgPayload] = []
         self.__msg_outbox_lock = Lock()
 
-    def msg_send(self, target_eid: int, content: str, radius: float) -> None:
+    def msg_send(self, target_eid: int, content: str, radius: float) -> int:
         """Send message to other entity with target_eid,
         target entity must have msg_mixin.
 
         Message will be limited in radius.
+
+        Return the msg_id.
         """
         payload = MsgPayload(target_eid=target_eid, content=content, radius=radius)
         with self.__msg_outbox_lock:
             self.msg_outbox.append(payload)
+        return payload.msg_id
 
     def msg_send_ensure(
-        self, target_eid: int, content: str, radius: float, max_try: int = 0
+        self, target_eid: int, content: str, radius: float
     ):
-        """Try max_try times or until msg is sent"""
-        try_times = 0
-
+        """Send the tick every until sent successfully."""
+        payload = MsgPayload(
+            target_eid=target_eid,
+            content=content,
+            radius=radius,
+            result=MsgStatus.ENSURE,
+        )
+        with self.__msg_outbox_lock:
+            self.msg_outbox.append(payload)
+        return payload.msg_id
 
     @classmethod
     def msg_target_has_inbox(cls, target: Character) -> TypeGuard[Type[MsgInboxMixin]]:
@@ -160,8 +180,9 @@ class MsgMixin(MsgInboxMixin, Character):
     def msg_tick(self, belong: World) -> None:
         with self.__msg_outbox_lock:
             for p in self.msg_outbox:
+                p.try_times += 1
                 if p.result is MsgStatus.PENDING:
-                    """Only send msg pending"""
+                    """Case PENDING"""
                     if belong.get_entity(
                         eid=p.target_eid
                     ):  # Entity in World.entity_dict is always a Character
@@ -177,7 +198,6 @@ class MsgMixin(MsgInboxMixin, Character):
                             target = belong.entity_dict[p.target_eid]
                             if self.msg_target_has_inbox(target):  # duck type
                                 target.msg_inbox.append(p.content)
-
                                 p.status_update(MsgStatus.SENT)
                             else:
                                 p.status_update(MsgStatus.NO_INBOX)
@@ -185,3 +205,15 @@ class MsgMixin(MsgInboxMixin, Character):
                             p.status_update(MsgStatus.NOT_FOUND)
                     else:
                         p.status_update(MsgStatus.NOT_FOUND)
+                elif p.result is MsgStatus.ENSURE:
+                    """Case ENSURE"""
+                    if belong.get_entity(eid=p.target_eid):
+                        dis = belong._get_natural_distance(p.target_eid, self)
+                        if dis:
+                            if dis <= p.radius:
+                                target = belong.entity_dict[p.target_eid]
+                                if self.msg_target_has_inbox(target):
+                                    target.msg_inbox.append(p.content)
+                                    # Only this case would set status to sentnt
+                                    p.status_update(MsgStatus.SENT)
+                    return

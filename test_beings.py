@@ -68,6 +68,12 @@ class TestMsgMixin(unittest.TestCase):
         time.sleep(1)
         assert self.msg1.msg_inbox == ['test, radius=10', 'test, radius=1000']
 
+    def test_msg_ensure(self):
+        self.msg0.msg_send_ensure(self.msg2.eid, 'test, ensure', 1)
+        self.ct.start()
+        time.sleep(0.1)
+        assert self.msg2.msg_inbox == ['test, ensure']
+
 
 if __name__ == "__main__":
     unittest.main()
