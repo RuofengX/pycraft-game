@@ -121,7 +121,7 @@ class MsgPayload:
 
     def __post_init__(self):
         self.msg_id = uuid.uuid4().int
-        self.try_times : int = 0
+        self.try_times: int = 0
 
     def status_update(self, status: MsgStatus):
         self.result = status
@@ -157,9 +157,7 @@ class MsgMixin(MsgInboxMixin, Character):
             self.msg_outbox.append(payload)
         return payload.msg_id
 
-    def msg_send_ensure(
-        self, target_eid: int, content: bytes, radius: float
-    ):
+    def msg_send_ensure(self, target_eid: int, content: bytes, radius: float):
         """Send the tick every until sent successfully."""
         payload = MsgPayload(
             target_eid=target_eid,
