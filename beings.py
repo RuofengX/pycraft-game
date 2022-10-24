@@ -141,7 +141,6 @@ class MsgMixin(MsgInboxMixin, Character):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.msg_name = "<Not Set>"
         self.msg_outbox: List[MsgPayload] = []
         self.__msg_outbox_lock = Lock()
 
