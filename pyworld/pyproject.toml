@@ -1,0 +1,3 @@
+[[tool.mypy.overrides]]
+module = "pyworld.*"
+ignore_missing_import = true

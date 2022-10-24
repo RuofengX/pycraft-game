@@ -1,0 +1,17 @@
+black
+click
+flake8
+jedi
+mccabe
+mypy
+mypy-extensions
+objprint
+parso
+pathspec
+pip
+platformdirs
+pycodestyle
+pyflakes
+setuptools
+tomli
+typing_extensions
