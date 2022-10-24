@@ -8,7 +8,12 @@ from pprint import pprint
 
 
 class Entity:
-    """Being"""
+    """Being
+
+    An entity of a world should only be created by World.create_entity() method.
+    Because an eid should be taken to create an entity.
+
+    """
 
     def __init__(self, eid: int):
         super().__init__()
