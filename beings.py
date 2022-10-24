@@ -91,7 +91,7 @@ class MsgInboxMixin(Character):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.msg_inbox: List[str] = []
+        self.msg_inbox: List[bytes] = []
 
 
 class MsgStatus(Enum):
@@ -115,7 +115,7 @@ class MsgPayload:
     """
 
     target_eid: int
-    content: str
+    content: bytes
     radius: float
     result: MsgStatus = MsgStatus.PENDING
 
@@ -144,7 +144,7 @@ class MsgMixin(MsgInboxMixin, Character):
         self.msg_outbox: List[MsgPayload] = []
         self.__msg_outbox_lock = Lock()
 
-    def msg_send(self, target_eid: int, content: str, radius: float) -> int:
+    def msg_send(self, target_eid: int, content: bytes, radius: float) -> int:
         """Send message to other entity with target_eid,
         target entity must have msg_mixin.
 
@@ -158,7 +158,7 @@ class MsgMixin(MsgInboxMixin, Character):
         return payload.msg_id
 
     def msg_send_ensure(
-        self, target_eid: int, content: str, radius: float
+        self, target_eid: int, content: bytes, radius: float
     ):
         """Send the tick every until sent successfully."""
         payload = MsgPayload(
