@@ -1,4 +1,4 @@
-from ..world import Character
+from pyworld.world import Character
 
 
 class StructMixin(Character):

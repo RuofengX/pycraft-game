@@ -11,7 +11,7 @@ import uuid
 
 from objprint import op  # type:ignore
 
-from ..world import Entity, World, Character
+from pyworld.world import Entity, World, Character
 
 # TODO: Use Metaclass to regulate those generate of Mixin module.
 

@@ -4,8 +4,8 @@ import time
 from objprint import op  # type:ignore
 from pprint import pprint
 
-from .world import Continuum, Vector, Character, Entity
-from .modules import DebugMixin, MsgMixin
+from pyworld.world import Continuum, Vector, Character, Entity
+from pyworld.modules import DebugMixin, MsgMixin
 
 
 class DebugEntity(DebugMixin, Character):
