@@ -54,9 +54,17 @@ of `Character`.
 
 ## Serialization and Persistence
 
-Pyworld use pickle module to save all of the object.
+Pyworld uses pickle module to save all of the object.
 But some types is not spported by pickle.
 As a resolution, every property that cannot be serialized by pickle module should be masked with a _ mark before, like `_<property_name>`. Property with protect mark `__<property_name>` is also recognized as Non-Pickle-able property.
 
-Every entity has a `__getstatus__` and `__setstatus__` method, which will properly del those `_<property_name>` and restore them.
+Every entity has a `__getstatus__` and `__setstatus__` method, which will properly del those `_<property_name>`. Thus, for those object that couldn't be pickled, e.g. `threading.Lock()`, there are a special method to initiate and 're-setstatus' when load from an binary save file.
+
+Entity has an `__static_init__` method, which will recreate those non-pickled properties which were thrown by `__getstatus__`.
+The `__static_init__` method would be called automatically in `Entity().__init__()` method, and will also be called in `Entity().__setstate__()` method when the object is restore from pickle bytes.
+Any override `__static_init__` method should run `super().__static_init__()` so that other mixin property could initiate correctly.
+
+### TL;DR
+All you need to do is: If any of property in the mixin module cannot be pickled, make sure they are stateless and write those init method in `__static_init__`, not in `__init__`; Also make sure your `__init__` and `__static_init__` methods has called `super().__static_init__()`.
+
 

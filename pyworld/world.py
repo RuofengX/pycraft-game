@@ -121,7 +121,7 @@ class World(Entity):
 
     def __static_init__(self):
         super().__static_init__()
-        self.__eneity_count_lock = Lock()
+        self.__entity_count_lock = Lock()
 
     def tick(self, belong=None) -> None:
         super().tick(belong=belong)
@@ -130,7 +130,7 @@ class World(Entity):
 
     def world_entity_plus(self) -> int:
         """will be called whenever a entity is created"""
-        with self.__eneity_count_lock:
+        with self.__entity_count_lock:
             self.entity_count += 1
         return self.entity_count
 
@@ -252,9 +252,20 @@ class Continuum(Thread):
         self.__world_lock = Lock()
         self.stop_flag = False
         self.pause_flag = False
+        self.is_idle = True  # tick is not running
 
     def stop(self):
+        """
+        Set pause_flag and stop_flag to True, which will
+        cause the run() method terminate.
+
+        Then wait until the thread end.
+
+        Cannot restart!
+        """
+        self.pause_flag = True
         self.stop_flag = True
+        self.join()
 
     def run(self):
         """Thread run the loop.
@@ -263,14 +274,18 @@ class Continuum(Thread):
         """
         while not self.stop_flag:
             while not self.pause_flag:
+                self.is_idle = False
                 with self.__world_lock:
                     self.world.tick()
+                self.is_idle = True
 
     def pause(self):
-        """Pause the game after next tick is over.
-
+        """Wait until the game pause.
         world._world_lock would release."""
         self.pause_flag = True
+        while not self.is_idle:
+            pass
+        return
 
     def resume(self):
         """Resume the game after game pause."""

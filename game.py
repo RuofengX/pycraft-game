@@ -17,6 +17,10 @@ class Core:
     def start(self):
         self.ct.start()
 
+    def stop(self):
+        self.ct.stop()
+        self.save()
+
     def save(self):
         with open(self.save_file_path, mode='wb') as f:
             self.ct.pause()
