@@ -1,3 +1,4 @@
+*.bin
 tags
 .flake8
 # Byte-compiled / optimized / DLL files
