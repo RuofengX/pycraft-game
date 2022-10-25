@@ -23,3 +23,6 @@ Time runs in a tick-loop in pyworld. Continuum maintains the tick-loop. Continuu
 When a tick happens, firstly the Continuum would call tick() method of every entity of `continuum_instance.entity_dict`.
 Then the `entity_instance.tick()` method would call every method named after '_tick' of itself.
 
+## Tips for Devlopers
+
+Please seeing the pyworld/README.md for more infomation.
