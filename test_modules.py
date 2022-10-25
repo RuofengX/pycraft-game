@@ -15,7 +15,7 @@ class DebugEntity(DebugMixin, Character):
 class TestDebugMixin(unittest.TestCase):
     def setUp(self):
         self.ct = Continuum()
-        self.db_ent = self.ct.new_entity(cls=DebugEntity, pos=Vector(0, 0, 0))
+        self.db_ent = self.ct.world_new_entity(cls=DebugEntity, pos=Vector(0, 0, 0))
         self.db_ent._report_flag = True
 
     @unittest.skip("passed")
@@ -40,14 +40,14 @@ class MsgEntity(MsgMixin, Character):
 class TestMsgMixin(unittest.TestCase):
     def setUp(self):
         self.ct = Continuum()
-        self.ent0 = self.ct.new_entity(cls=Entity)
-        self.msg0 = self.ct.new_entity(
+        self.ent0 = self.ct.world_new_entity(cls=Entity)
+        self.msg0 = self.ct.world_new_entity(
             cls=MsgEntity, pos=Vector(0, 0, 0), velo=Vector(0, 0, 0)
         )
-        self.msg1 = self.ct.new_entity(
+        self.msg1 = self.ct.world_new_entity(
             cls=MsgEntity, pos=Vector(10, 0, 0), velo=Vector(0, 0, 0)
         )
-        self.msg2 = self.ct.new_entity(
+        self.msg2 = self.ct.world_new_entity(
             cls=MsgEntity, pos=Vector(10, 0, 0), velo=Vector(-0.1, 0, 0)
         )
 
@@ -87,18 +87,18 @@ class OreItem(Item):
 class TestCargo(unittest.TestCase):
     def setUp(self):
         self.ct = Continuum()
-        self.ent0 = self.ct.new_entity(cls=Entity)
-        self.crg0 = self.ct.new_entity(
+        self.ent0 = self.ct.world_new_entity(cls=Entity)
+        self.crg0 = self.ct.world_new_entity(
             cls=CargoEntity,
             pos=Vector(0, 0, 0),
             cargo_max_slots=10
         )
-        self.crg1 = self.ct.new_entity(
+        self.crg1 = self.ct.world_new_entity(
             cls=CargoEntity,
             pos=Vector(10, 0, 0),
             cargo_max_slots=100
         )
-        self.crg2 = self.ct.new_entity(
+        self.crg2 = self.ct.world_new_entity(
             cls=CargoEntity,
             pos=Vector(10, 0, 0),
             cargo_max_slots=1

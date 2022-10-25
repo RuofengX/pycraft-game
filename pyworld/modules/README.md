@@ -16,8 +16,8 @@ If a mixin module needs some public type or utils, write it as a sepreate mixin,
 and name them as <Name><Util_name>. Also notice that only mixin class would
 be inherit to the final entity type.
 
-For example:
-    '''python
+For example: 
+```python
 
     class MsgPayload():
         ...
@@ -30,9 +30,9 @@ For example:
         def msg_send(self):
             ...
 
-    '''
+```
 
-## The 'xxx_tick' method
+## The `_tick` method
 
 Entity instance will run every method named after '_tick' in every tick.
 
@@ -40,15 +40,23 @@ The '_tick' method must have two positional arguments, which is:
 1. instance itself, also know as `self`;
 2. (Optional)the belonging of this instance. In most case is the Continuum instance.
 
-'_tick' function return None.
+`_tick` function return None.
 
 ## Inherit order
+
+Entity instance will initiate mixin classes first, then the entity class, which will solve most of teh MRU problems.
+For example, an entity instance with MsgMixin and Character should wrote in these:
+`class CharacterWithMsgMixin(MsgMixin, Character)`
 
 If a mixin module(class) is only available to some specific entity type, inherit it,
 like `class MsgMixin(Character)` means that MsgMixin could only apply to the type
 of `Character`.
 
-Entity instance will initiate first by mixin classes, then the entity class.
-For example, an entity instance with MsgMixin and Character should wrote in these:
-`class CharacterWithMsgMixin(MsgMixin, Character)`
+## Serialization and Persistence
+
+Pyworld use pickle module to save all of the object.
+But some types is not spported by pickle.
+As a resolution, every property that cannot be serialized by pickle module should be masked with a _ mark before, like `_<property_name>`. Property with protect mark `__<property_name>` is also recognized as Non-Pickle-able property.
+
+Every entity has a `__getstatus__` and `__setstatus__` method, which will properly del those `_<property_name>` and restore them.
 

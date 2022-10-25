@@ -3,7 +3,6 @@ from math import sqrt
 from collections import namedtuple
 from threading import Thread, Lock
 from typing import Dict, Optional, List, TypeVar, Type
-from pprint import pprint
 
 from objprint import op  # type: ignore
 
@@ -13,19 +12,23 @@ class Entity:
 
     An entity of a world should only be created by World.create_entity() method.
     Because an eid should be taken to create an entity.
-
     """
 
     def __init__(self, eid: int):
         super().__init__()
+        self.__static_init__()
         self.eid = eid
         self.age = 0
-        self._report_flag = False
+        self.report_flag = False
+
+    def __static_init__(self):
+        """Will be called when loading from pickle bytes."""
+        pass
 
     def tick(self, belong: Entity = None):
         """Describe what a entity should do in a tick."""
         self.age += 1
-        if self._report_flag:
+        if self.report_flag:
             self.report()
 
         # Call every function named after _tick of class
@@ -38,7 +41,22 @@ class Entity:
     def report(self):
         """Report self, for logging or debuging usage."""
         if self.age % 20 == 0:
-            op(self)
+            print('-' * 10)
+            op(self.__dict__)
+
+    def __getstate__(self) -> dict:
+        status = self.__dict__.copy()
+        pop_list: List[str] = []
+        for key in status.keys():
+            if key[0] == '_':
+                pop_list.append(key)
+        for key in pop_list:
+            status.pop(key)
+        return status
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self.__static_init__()
 
 
 Entities = TypeVar("Entities", bound=Type[Entity])
@@ -77,10 +95,6 @@ class Character(Entity):
         self.velocity = velo
         self.acceleration = Vector(0, 0, 0)
 
-    def report(self):
-        super().report()
-        pass
-
     def tick(self, belong: World):  # type:ignore
         """Character has position, velocity and acceleration"""
         super().tick(belong=belong)
@@ -103,67 +117,72 @@ class World(Entity):
     def __init__(self) -> None:
         super().__init__(eid=0)
         self.entity_count = 0  # entity in total when the world created
-        self._entity_count_lock = Lock()
         self.entity_dict: Dict[int, Character] = {}
 
-    def _entity_count_plus(self) -> int:
-        """will be called whenever a entity is created"""
-        with self._entity_count_lock:
-            self.entity_count += 1
-        return self.entity_count
+    def __static_init__(self):
+        super().__static_init__()
+        self.__eneity_count_lock = Lock()
 
     def tick(self, belong=None) -> None:
         super().tick(belong=belong)
         for ent in self.entity_dict.values():
             ent.tick(belong=self)
 
-    def new_character(self, pos: Vector) -> Character:
-        eid = self._entity_count_plus()
+    def world_entity_plus(self) -> int:
+        """will be called whenever a entity is created"""
+        with self.__eneity_count_lock:
+            self.entity_count += 1
+        return self.entity_count
+
+    def world_new_character(self, pos: Vector) -> Character:
+        eid = self.world_entity_plus()
         new_c = Character(eid=eid, pos=pos)
         self.entity_dict[eid] = new_c
         return new_c
 
-    def new_entity(self, cls=Entity, *args, **kargs):
+    def world_new_entity(self, cls=Character, *args, **kargs):
         # TODO: Use generic to regulate the type of arg 'cls'
-        """New an entity in the world. If cls is given, use cls as the class."""
-        eid = self._entity_count_plus()
+        """New an entity in the world. If cls is given, use cls as the generator."""
+        eid = self.world_entity_plus()
         new_e = cls(eid, *args, **kargs)
         self.entity_dict[eid] = new_e
         return new_e
 
-    def del_character(self, eid: int) -> None:
+    def world_del_entity(self, eid: int) -> None:
         if eid in self.entity_dict.keys():
             self.entity_dict.pop(eid)
 
-    def get_entity(self, eid: int) -> Optional[Character]:
+    def world_get_entity(self, eid: int) -> Optional[Character]:
         if eid in self.entity_dict.keys():
             return self.entity_dict[eid]
         else:
             return None
 
-    def get_character_nearby(self, char: Character, radius: float) -> List[Character]:
+    def world_get_nearby_character(
+        self, char: Character, radius: float
+    ) -> List[Character]:
         """Return character instances list nearby the position"""
         rtn = []
 
         for ent in self.entity_dict.values():
             if ent != char:  # Pass char itself
-                dis = self._get_lineal_distance(char, ent)
+                dis = self.world_get_lineral_distance(char, ent)
                 if dis is not None:
                     if dis - radius < 0:
                         rtn.append(ent)
         return rtn
 
-    def _get_entity_index(self, ent: Character) -> Optional[int]:
+    def world_get_character_index(self, ent: Character) -> Optional[int]:
         for item in self.entity_dict.items():
             k, v = item
             if v == ent:
                 return k
         return None
 
-    def _entity_exists(self, ent: Character) -> bool:
+    def world_character_exists(self, ent: Character) -> bool:
         return ent in self.entity_dict
 
-    def _get_natural_distance(
+    def world_natural_distance(
         self, target1: Character | int, target2: Character | int
     ) -> Optional[float]:
         """Return the natural distance between char1 and char2.
@@ -172,12 +191,12 @@ class World(Entity):
         ent_list = self.entity_dict.values()
 
         if isinstance(target1, int):
-            char1 = self.get_entity(target1)
+            char1 = self.world_get_entity(target1)
         else:
             char1 = target1
 
         if isinstance(target2, int):
-            char2 = self.get_entity(target2)
+            char2 = self.world_get_entity(target2)
         else:
             char2 = target2
 
@@ -192,7 +211,7 @@ class World(Entity):
 
         return None
 
-    def _get_lineal_distance(
+    def world_get_lineral_distance(
         self, target1: Character | int, target2: Character | int
     ) -> Optional[float]:
         """Return the distance but in sum(delta x, y, z) like,
@@ -201,12 +220,12 @@ class World(Entity):
         ent_list = self.entity_dict.values()
 
         if isinstance(target1, int):
-            char1 = self.get_entity(target1)
+            char1 = self.world_get_entity(target1)
         else:
             char1 = target1
 
         if isinstance(target2, int):
-            char2 = self.get_entity(target2)
+            char2 = self.world_get_entity(target2)
         else:
             char2 = target2
 
@@ -222,30 +241,37 @@ class World(Entity):
         return None
 
 
-class Continuum(World, Thread):
+class Continuum(Thread):
     """World with time"""
 
-    def __init__(self):
+    def __init__(self, world: Optional[World] = None):
         super().__init__()
-        self._world_lock = Lock()
+        if world is None:
+            world = World()
+        self.world = world
+        self.__world_lock = Lock()
         self.stop_flag = False
-
-        # self.start()
-
-    def report(self):
-        """Override default report method."""
-        pprint(
-            {
-                "age": self.age,
-                "entity_alive": len(self.entity_dict),
-                "entity_total": self.entity_count,
-            }
-        )
+        self.pause_flag = False
 
     def stop(self):
         self.stop_flag = True
 
     def run(self):
+        """Thread run the loop.
+
+        Use `.start()` method instead.
+        """
         while not self.stop_flag:
-            with self._world_lock:
-                self.tick()
+            while not self.pause_flag:
+                with self.__world_lock:
+                    self.world.tick()
+
+    def pause(self):
+        """Pause the game after next tick is over.
+
+        world._world_lock would release."""
+        self.pause_flag = True
+
+    def resume(self):
+        """Resume the game after game pause."""
+        self.pause_flag = False
