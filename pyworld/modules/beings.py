@@ -128,11 +128,11 @@ class MsgMixin(MsgInboxMixin, Character):
                 p.try_times += 1
                 if p.result is MsgStatus.PENDING:
                     """Case PENDING"""
-                    if belong.get_entity(
+                    if belong.world_get_entity(
                         eid=p.target_eid
                     ):  # Entity in World.entity_dict is always a Character
                         """Check target exists silent"""
-                        dis = belong._get_natural_distance(p.target_eid, self)
+                        dis = belong.world_natural_distance(p.target_eid, self)
 
                         if dis is None:
                             p.status_update(MsgStatus.NOT_FOUND)
@@ -152,8 +152,8 @@ class MsgMixin(MsgInboxMixin, Character):
                         p.status_update(MsgStatus.NOT_FOUND)
                 elif p.result is MsgStatus.ENSURE:
                     """Case ENSURE"""
-                    if belong.get_entity(eid=p.target_eid):
-                        dis = belong._get_natural_distance(p.target_eid, self)
+                    if belong.world_get_entity(eid=p.target_eid):
+                        dis = belong.world_natural_distance(p.target_eid, self)
                         if dis:
                             if dis <= p.radius:
                                 target = belong.entity_dict[p.target_eid]

@@ -1,86 +1,10 @@
 from __future__ import annotations
-from math import sqrt
-from collections import namedtuple
 from threading import Thread, Lock
-from typing import Dict, Optional, List, TypeVar, Type
-
-from objprint import op  # type: ignore
+from typing import Dict, Optional, List
 
 
-class Entity:
-    """Being
-
-    An entity of a world should only be created by World.create_entity() method.
-    Because an eid should be taken to create an entity.
-    """
-
-    def __init__(self, eid: int):
-        super().__init__()
-        self.__static_init__()
-        self.eid = eid
-        self.age = 0
-        self.report_flag = False
-
-    def __static_init__(self):
-        """Will be called when loading from pickle bytes."""
-        pass
-
-    def tick(self, belong: Entity = None):
-        """Describe what a entity should do in a tick."""
-        self.age += 1
-        if self.report_flag:
-            self.report()
-
-        # Call every function named after _tick of class
-        for func in dir(
-            self
-        ):  # dir() could show all instance (include father's) method
-            if func[-5:] == "_tick":
-                getattr(self, func)(belong=belong)
-
-    def report(self):
-        """Report self, for logging or debuging usage."""
-        if self.age % 20 == 0:
-            print('-' * 10)
-            op(self.__dict__)
-
-    def __getstate__(self) -> dict:
-        status = self.__dict__.copy()
-        pop_list: List[str] = []
-        for key in status.keys():
-            if key[0] == '_':
-                pop_list.append(key)
-        for key in pop_list:
-            status.pop(key)
-        return status
-
-    def __setstate__(self, state: dict) -> None:
-        self.__dict__.update(state)
-        self.__static_init__()
-
-
-Entities = TypeVar("Entities", bound=Type[Entity])
-
-
-class Vector(namedtuple("Vector", ["x", "y", "z"])):
-    __slots__ = ()
-
-    @classmethod
-    def zero(cls):
-        """return a vector instance which is zero"""
-        return Vector(0, 0, 0)
-
-    def __add__(self, other):
-        return Vector(self.x + other.x, self.y + other.y, self.z + other.z)
-
-    def __sub__(self, other):
-        return Vector(self.x - other.x, self.y - other.y, self.z - other.z)
-
-    def length(self):
-        return sqrt(self.x**2 + self.y**2 + self.z**2)
-
-    def is_zero(self) -> bool:
-        return self.x == 0 and self.y == 0 and self.z == 0
+from pyworld.entity import Entity
+from pyworld.basic import Vector
 
 
 class Character(Entity):
@@ -89,8 +13,10 @@ class Character(Entity):
     All the entity in the world is instance of character.
     """
 
-    def __init__(self, eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0)):
-        super().__init__(eid=eid)
+    def __init__(
+        self, eid: int, pos: Vector, *args, velo: Vector = Vector(0, 0, 0), **kwargs
+    ):
+        super().__init__(eid, *args, **kwargs)
         self.position = pos
         self.velocity = velo
         self.acceleration = Vector(0, 0, 0)
@@ -118,6 +44,7 @@ class World(Entity):
         super().__init__(eid=0)
         self.entity_count = 0  # entity in total when the world created
         self.entity_dict: Dict[int, Character] = {}
+        self.player_dict: Dict[str, Character] = {}  # HACK: here Character is Player.
 
     def __static_init__(self):
         super().__static_init__()
@@ -140,11 +67,12 @@ class World(Entity):
         self.entity_dict[eid] = new_c
         return new_c
 
-    def world_new_entity(self, cls=Character, *args, **kargs):
-        # TODO: Use generic to regulate the type of arg 'cls'
+    def world_new_entity(self, cls=Character, *args, **kwargs) -> Optional[Character]:
+        # HACK: Use generic to regulate the type of arg 'cls'
         """New an entity in the world. If cls is given, use cls as the generator."""
         eid = self.world_entity_plus()
-        new_e = cls(eid, *args, **kargs)
+        print("eid:{}".format(eid))
+        new_e = cls(*args, eid=eid, **kwargs)
         self.entity_dict[eid] = new_e
         return new_e
 
@@ -265,7 +193,8 @@ class Continuum(Thread):
         """
         self.pause_flag = True
         self.stop_flag = True
-        self.join()
+        if self.is_alive():
+            self.join()
 
     def run(self):
         """Thread run the loop.
