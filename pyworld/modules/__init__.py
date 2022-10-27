@@ -1,6 +1,6 @@
 from .beings import DebugMixin, MsgInboxMixin, MsgMixin
 from .struct import StructMixin
-from .item import Item, ItemStack, CargoMixin, BatteryMixin
+from .item import Item, ItemStack, CargoMixin
 
 __all__ = [
     "DebugMixin",
@@ -9,6 +9,5 @@ __all__ = [
     "StructMixin",
     "Item",
     "ItemStack",
-    "CargoMixin",
-    "BatteryMixin",
+    "CargoMixin"
 ]

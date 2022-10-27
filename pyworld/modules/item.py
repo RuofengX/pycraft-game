@@ -3,35 +3,38 @@ from typing import List, Optional
 from dataclasses import dataclass
 from threading import Lock
 
-from pyworld.world import Character
+from pyworld.world import Character, World
 
 
 @dataclass
-class Item():
+class Item:
     """Only used in cargo system.
 
     Like entity, item also has 'tick' method.
     Item could only exist in a cargo.
     """
+
     # TODO: Add item entity so that item could exist in continuum.
 
     def __post_init__(self):
-        self.item_name: str = self.__class__.__name__
-        self.item_type: type = self.__class__
+        self.name: str = self.__class__.__name__
+        self.type: type = self.__class__
 
     def to_stack(self) -> ItemStack:
         """Use self to create a itemstack."""
         return ItemStack([self])
 
-    def tick(self, belong: CargoMixin):
-        pass
+    def tick(self, o: CargoMixin, w: World):
+        """Every item instance should implements this func."""
+        raise NotImplementedError
 
 
 @dataclass
 class ItemStack:
     """One virtual container"""
+
     item_list: List[Item]
-    item_name: str = 'None'
+    item_name: str = "None"
 
     def __post_init__(self):
         self.item_name = str(self.item_list[0].item_name)
@@ -43,14 +46,15 @@ class ItemStack:
     def __iter__(self) -> List[Item]:
         return self.item_list
 
-    def tick(self, belong: CargoMixin) -> None:
+    def tick(self, o: CargoMixin, w: World) -> None:
         for item in self.item_list:
-            item.tick(belong=belong)
+            item.tick(o=o, w=w)
 
 
 class CargoMixin(Character):
     """Cargo"""
-    def __init__(self, *args, cargo_max_slots: int, **kwargs) -> None:
+
+    def __init__(self, *args, cargo_max_slots: int = 0, **kwargs) -> None:
         """Parameter cargo_max_slots determins the max slots(ItemStack)
         that a cargo could have.
 
@@ -59,6 +63,9 @@ class CargoMixin(Character):
         super().__init__(*args, **kwargs)
         self.cargo_list: List[ItemStack] = []
         self.cargo_max_slots = cargo_max_slots
+
+    def __static_init__(self):
+        super().__static_init__()
         self.__cargo_lock = Lock()
 
     def cargo_has_slot(self) -> bool:
@@ -82,23 +89,53 @@ class CargoMixin(Character):
             else:
                 return False
 
-    def cargo_pick_itemstack(self, item_name: str) -> Optional[ItemStack]:
-        """Return the first itemstack that match the item_name.
-        Return None if no matching."""
+    def cargo_pop_itemstack(self, index: int) -> Optional[ItemStack]:
+        """Pop out the index of cargo."""
         with self.__cargo_lock:
-            for i in range(len(self.cargo_list)):
-                stack = self.cargo_list[i]
-                if stack.item_name == item_name:
-                    return stack
-            return None
+            if index <= len(self.cargo_list):
+                stack = self.cargo_list.pop(index)
+                return stack
+            else:
+                return None
 
-    def cargo_tick(self, belong: Character):
+    def cargo_tick(self, belong: World):
         """Tick every itemstack and item."""
         with self.__cargo_lock:
             for itemstack in self.cargo_list:
-                itemstack.tick(belong=self)
+                itemstack.tick(o=self, w=belong)
 
 
-class BatteryMixin(Character):
-    """AAA"""
-    pass
+class Radar(Item):
+    def __init__(
+        self,
+        *args,
+        radius: int,
+        interval_tick: int = 100,
+        auto_scan: bool = True,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.radius = radius
+        self.interval_tick = interval_tick
+        self.auto_scan = auto_scan
+        self.scan_result: List[Character] = []
+
+    def set_scan_tick(self, interval: int):
+        self.interval_tick = interval
+
+    def toggle_auto_scan(self, target: Optional[bool] = None):
+        """Toggle radio auto_scan
+        If target: bool is given, set auto_scan to target status
+        """
+        if target is None:
+            self.auto_scan = not self.auto_scan
+        else:
+            self.auto_scan = target
+
+    def tick(self, o: CargoMixin, w: World):
+        if self.auto_scan:
+            if o.age % self.interval_tick == 0:
+                self.scan_result = w.world_get_nearby_character(
+                    char=o, radius=self.radius
+                )
+# TODO: Test needed
