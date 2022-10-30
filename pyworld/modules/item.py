@@ -178,7 +178,7 @@ class CargoMixin(Character):
         with self.__cargo_lock:
 
             if index <= len(self.cargo):
-                stack = self.cargo.pop(index)
+                stack = self.cargo.pop(index)  # FIXME
                 return stack
             else:
                 return None
