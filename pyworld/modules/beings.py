@@ -2,11 +2,11 @@
 filename: beings.py
 comment: Containing basic modules, like DebugMixin, MsgMixin.
 """
-
+from __future__ import annotations
 from typing import List, TypeGuard, Type
 from enum import Enum
 from threading import Lock
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import uuid
 
 from objprint import op  # type:ignore
@@ -54,28 +54,35 @@ class MsgStatus(Enum):
         until set to SENT."
 
 
-@dataclass
+@dataclass(eq=False)
 class MsgPayload:
-    """MsgPayload is a namedtuple with 4 tags: target, content, radius, result.
-
-    MsgPayload is a namedtuple with 4 tags: target, content, radius, result.
-    MsgPayload is only used in msg_outbox stack.
+    """MsgPayload is the entry of  msg.outbox list
+    it contains some necessary info about the message it self.
     """
 
-    target_eid: int
-    content: bytes
-    radius: float
-    result: MsgStatus = MsgStatus.PENDING
+    target_eid: int  # Receiver of the message
+    content: bytes  # Content of the message
+    radius: float  # Boardcast radius
+    result: MsgStatus = MsgStatus.PENDING  # The send status set by MsgMixin
+    try_times = field(
+        default=0, init=False
+    )  # Send times, it is helpful for ENSURE message
+    msg_id = field(init=False)  # Msg ID, which is an UUID4().int
 
     def __post_init__(self):
         self.msg_id = uuid.uuid4().int
-        self.try_times: int = 0
 
     def status_update(self, status: MsgStatus):
         self.result = status
 
     def __hash__(self) -> int:
         return self.msg_id
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, MsgPayload):
+            return self.msg_id == other.msg_id
+        else:
+            return False
 
 
 class MsgMixin(MsgInboxMixin, Character):
@@ -106,7 +113,7 @@ class MsgMixin(MsgInboxMixin, Character):
         return payload.msg_id
 
     def msg_send_ensure(self, target_eid: int, content: bytes, radius: float):
-        """Send the tick every until sent successfully."""
+        """Send the msg every tick until sent successfully."""
         payload = MsgPayload(
             target_eid=target_eid,
             content=content,
@@ -123,6 +130,7 @@ class MsgMixin(MsgInboxMixin, Character):
         return hasattr(target, "msg_inbox")
 
     def msg_tick(self, belong: World) -> None:
+        """Automatically send messages from outbox to target.inbox"""
         with self.__msg_outbox_lock:
             for p in self.msg_outbox:
                 p.try_times += 1

@@ -5,7 +5,7 @@ from objprint import op  # type:ignore
 from pprint import pprint
 
 from pyworld.world import Continuum, Vector, Character, Entity
-from pyworld.modules import DebugMixin, MsgMixin, CargoMixin, Item
+from pyworld.modules import DebugMixin, MsgMixin, CargoMixin, Item, Radar
 
 
 class DebugEntity(DebugMixin, Character):
@@ -128,7 +128,29 @@ class TestCargo(unittest.TestCase):
 
         time.sleep(1)
 
-    # TODO: other test
+
+class TestItemEnt(CargoMixin, MsgMixin, Character):
+    pass
+
+
+class TestRadar(unittest.TestCase):
+    def setUp(self):
+        self.ct = Continuum()
+        self.target = self.ct.world.world_new_entity(
+            cls=Character,
+            pos=Vector(0, 1, 0)
+        )
+        self.tre = self.ct.world.world_new_entity(
+            cls=TestItemEnt,
+            cargo_max_slots=1,
+            pos=Vector(0, 0, 0)
+        )
+
+        radar = Radar()
+        self.tre.cargo_add_itemstack(radar.to_stack())
+
+    def test_radar(self):
+        self.tre.
 
 
 if __name__ == "__main__":

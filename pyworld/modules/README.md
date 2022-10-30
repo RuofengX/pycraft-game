@@ -67,4 +67,5 @@ Any override `__static_init__` method should run `super().__static_init__()` so 
 ### TL;DR
 All you need to do is: If any of property in the mixin module cannot be pickled, make sure they are stateless and write those init method in `__static_init__`, not in `__init__`; Also make sure your `__init__` and `__static_init__` methods has called `super().__static_init__()`.
 
+Also, json serialize would use `__getstate__` method, and no reference cycle is allowed in Entity type.
 

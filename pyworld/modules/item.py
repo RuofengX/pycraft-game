@@ -1,3 +1,9 @@
+"""
+Item class and CargoMixin
+
+Item class and CargoMixin are important parts of pyworld.
+These system provide different 'abailities' for different instances.
+"""
 from __future__ import annotations
 from typing import List, Optional
 from dataclasses import dataclass
@@ -54,13 +60,13 @@ class ItemStack:
 class CargoMixin(Character):
     """Cargo"""
 
-    def __init__(self, *args, cargo_max_slots: int = 0, **kwargs) -> None:
+    def __init__(self, cargo_max_slots: int = 0, **kwargs) -> None:
         """Parameter cargo_max_slots determins the max slots(ItemStack)
         that a cargo could have.
 
         If a sub-zero cargo_max_slots is give, cargo is infinite.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.cargo_list: List[ItemStack] = []
         self.cargo_max_slots = cargo_max_slots
 
@@ -79,21 +85,33 @@ class CargoMixin(Character):
                 return False
 
     def cargo_add_itemstack(self, item_stack: ItemStack) -> bool:
-        """Use this method to add item stack onto one's cargo.
+        """
+        Use this method to add item stack onto one's cargo.
+        Once the itemstack is added to the entity instance,
+        you can fetch the itemstack by using .cargo_xxx property.
 
-        Return True if success."""
+        Return True if success.
+        """
         with self.__cargo_lock:
             if self.cargo_has_slot():
                 self.cargo_list.append(item_stack)
+                setattr(self, 'cargo_' + item_stack.item_name, item_stack)
                 return True
             else:
                 return False
 
     def cargo_pop_itemstack(self, index: int) -> Optional[ItemStack]:
-        """Pop out the index of cargo."""
+        """
+        Pop out the index of cargo.
+        Also delete the cargo_<itemstack> property of the itemstack
+
+        Return the stack if success. Other return is None.
+        """
         with self.__cargo_lock:
+
             if index <= len(self.cargo_list):
                 stack = self.cargo_list.pop(index)
+                delattr(self, 'cargo_' + stack.item_name)
                 return stack
             else:
                 return None
@@ -108,17 +126,17 @@ class CargoMixin(Character):
 class Radar(Item):
     def __init__(
         self,
-        *args,
-        radius: int,
+        radius: int = 0,
         interval_tick: int = 100,
         auto_scan: bool = True,
-        **kwargs,
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.radius = radius
         self.interval_tick = interval_tick
         self.auto_scan = auto_scan
         self.scan_result: List[Character] = []
+        self.last_update: int = -1
 
     def set_scan_tick(self, interval: int):
         self.interval_tick = interval
@@ -138,4 +156,4 @@ class Radar(Item):
                 self.scan_result = w.world_get_nearby_character(
                     char=o, radius=self.radius
                 )
-# TODO: Test needed
+                self.last_update = w.age

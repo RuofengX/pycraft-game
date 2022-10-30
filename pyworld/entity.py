@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, TypeVar, Type
+from typing import List
 import uuid
 
 from objprint import op  # type: ignore
@@ -12,8 +12,9 @@ class Entity:
     Because an eid should be taken to create an entity.
     """
 
-    def __init__(self, eid: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, eid: int, **kwargs):
+        """Entity type only accept kwargs argumetns."""
+        super().__init__(**kwargs)
         self.__static_init__()
         self.eid = eid
         self.age = 0
@@ -22,6 +23,7 @@ class Entity:
 
     def __static_init__(self):
         """Will be called when loading from pickle bytes."""
+        self.__uuid: uuid.UUID = uuid.uuid4()
         pass
 
     def __eq__(self, other):
@@ -70,6 +72,3 @@ class Entity:
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
         self.__static_init__()
-
-
-Entities = TypeVar("Entities", bound=Type[Entity])

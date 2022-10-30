@@ -1,10 +1,12 @@
 from __future__ import annotations
 from threading import Thread, Lock
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, TYPE_CHECKING, Type, TypeVar, Generic
 
 
 from pyworld.entity import Entity
 from pyworld.basic import Vector
+if TYPE_CHECKING:
+    from pyworld.player import Player
 
 
 class Character(Entity):
@@ -14,9 +16,9 @@ class Character(Entity):
     """
 
     def __init__(
-        self, eid: int, pos: Vector, *args, velo: Vector = Vector(0, 0, 0), **kwargs
+        self, eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
     ):
-        super().__init__(eid, *args, **kwargs)
+        super().__init__(eid=eid, **kwargs)
         self.position = pos
         self.velocity = velo
         self.acceleration = Vector(0, 0, 0)
@@ -37,14 +39,17 @@ class Character(Entity):
             self.acceleration = Vector.zero()
 
 
-class World(Entity):
+Characters = TypeVar("Characters", bound=Character)
+
+
+class World(Generic[Characters], Entity):
     """The container of a set of beings"""
 
     def __init__(self) -> None:
         super().__init__(eid=0)
         self.entity_count = 0  # entity in total when the world created
         self.entity_dict: Dict[int, Character] = {}
-        self.player_dict: Dict[str, Character] = {}  # HACK: here Character is Player.
+        self.player_dict: Dict[str, Player] = {}  # HACK: here Character is Player.
 
     def __static_init__(self):
         super().__static_init__()
@@ -67,12 +72,16 @@ class World(Entity):
         self.entity_dict[eid] = new_c
         return new_c
 
-    def world_new_entity(self, cls=Character, *args, **kwargs) -> Optional[Character]:
+    def world_new_entity(
+        self, cls: Type[Characters], **kwargs
+    ) -> Optional[Characters]:
         # HACK: Use generic to regulate the type of arg 'cls'
-        """New an entity in the world. If cls is given, use cls as the generator."""
+        """New an entity in the world. If cls is given, use cls as the generator.
+        *args and **kwargs will be passed to cls to new a new entity,
+        but eid is not needed, world itself will generate a correct eid as the
+        first argument of cls."""
         eid = self.world_entity_plus()
-        print("eid:{}".format(eid))
-        new_e = cls(*args, eid=eid, **kwargs)
+        new_e = cls(eid=eid, **kwargs)
         self.entity_dict[eid] = new_e
         return new_e
 
