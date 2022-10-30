@@ -10,9 +10,9 @@ Pycraft official provides a public server, feel free to try!
 
 ## Some principles
 
-1. Player(You) first. The connection of players builds the core experience of Pycraft.
-2. Existences continuum. Whenever a player is logged in, the in-game entity will constantly exists. The whole data of simulated world will also be stored onto cloud.
-3. Rolling update. Game will keep updating in a roll, just like the university itself.
+1. Free is for Freedom. Be free and easy to code and play.
+2. Existences continuum. Make the time and spaces.
+3. Be pythonic. Code keeps evolving.
 
 ## Legal related
 
