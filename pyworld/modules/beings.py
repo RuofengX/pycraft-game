@@ -62,12 +62,12 @@ class MsgPayload:
 
     target_eid: int  # Receiver of the message
     content: bytes  # Content of the message
-    radius: float  # Boardcast radius
+    radius: float  # Broadcast radius
     result: MsgStatus = MsgStatus.PENDING  # The send status set by MsgMixin
-    try_times = field(
+    try_times: int = field(
         default=0, init=False
     )  # Send times, it is helpful for ENSURE message
-    msg_id = field(init=False)  # Msg ID, which is an UUID4().int
+    msg_id: int = field(init=False)  # Msg ID, which is an UUID4().int
 
     def __post_init__(self):
         self.msg_id = uuid.uuid4().int

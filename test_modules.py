@@ -1,11 +1,19 @@
 import unittest
 import time
+from dataclasses import dataclass
 
 from objprint import op  # type:ignore
 from pprint import pprint
 
 from pyworld.world import Continuum, Vector, Character, Entity
-from pyworld.modules import DebugMixin, MsgMixin, CargoMixin, Item, Radar
+from pyworld.modules import (
+    DebugMixin,
+    MsgMixin,
+    CargoMixin,
+    Item,
+    Radar,
+    CargoContainer,
+)
 
 
 class DebugEntity(DebugMixin, Character):
@@ -15,7 +23,9 @@ class DebugEntity(DebugMixin, Character):
 class TestDebugMixin(unittest.TestCase):
     def setUp(self):
         self.ct = Continuum()
-        self.db_ent = self.ct.world_new_entity(cls=DebugEntity, pos=Vector(0, 0, 0))
+        self.db_ent = self.ct.world.world_new_entity(
+            cls=DebugEntity, pos=Vector(0, 0, 0)
+        )
         self.db_ent._report_flag = True
 
     @unittest.skip("passed")
@@ -40,14 +50,14 @@ class MsgEntity(MsgMixin, Character):
 class TestMsgMixin(unittest.TestCase):
     def setUp(self):
         self.ct = Continuum()
-        self.ent0 = self.ct.world_new_entity(cls=Entity)
-        self.msg0 = self.ct.world_new_entity(
+        self.ent0 = self.ct.world.world_new_entity(cls=Entity)
+        self.msg0 = self.ct.world.world_new_entity(
             cls=MsgEntity, pos=Vector(0, 0, 0), velo=Vector(0, 0, 0)
         )
-        self.msg1 = self.ct.world_new_entity(
+        self.msg1 = self.ct.world.world_new_entity(
             cls=MsgEntity, pos=Vector(10, 0, 0), velo=Vector(0, 0, 0)
         )
-        self.msg2 = self.ct.world_new_entity(
+        self.msg2 = self.ct.world.world_new_entity(
             cls=MsgEntity, pos=Vector(10, 0, 0), velo=Vector(-0.1, 0, 0)
         )
 
@@ -66,8 +76,7 @@ class TestMsgMixin(unittest.TestCase):
         self.msg0.msg_send(self.msg1.eid, b"test, radius=10", 10)
         self.msg0.msg_send(self.msg1.eid, b"test, radius=1000", 1000)
         time.sleep(1)
-        assert self.msg1.msg_inbox == \
-            [b"test, radius=10", b"test, radius=1000"]
+        assert self.msg1.msg_inbox == [b"test, radius=10", b"test, radius=1000"]
 
     def test_msg_ensure(self):
         self.msg0.msg_send_ensure(self.msg2.eid, b"test, ensure", 1)
@@ -80,28 +89,23 @@ class CargoEntity(CargoMixin, Character):
     pass
 
 
+@dataclass
 class OreItem(Item):
-    pass
+    mass = 1
 
 
 class TestCargo(unittest.TestCase):
     def setUp(self):
         self.ct = Continuum()
-        self.ent0 = self.ct.world_new_entity(cls=Entity)
-        self.crg0 = self.ct.world_new_entity(
-            cls=CargoEntity,
-            pos=Vector(0, 0, 0),
-            cargo_max_slots=10
+        self.ent0 = self.ct.world.world_new_entity(cls=Entity)
+        self.crg0 = self.ct.world.world_new_entity(
+            cls=CargoEntity, pos=Vector(0, 0, 0), cargo_max_slots=10
         )
-        self.crg1 = self.ct.world_new_entity(
-            cls=CargoEntity,
-            pos=Vector(10, 0, 0),
-            cargo_max_slots=100
+        self.crg1 = self.ct.world.world_new_entity(
+            cls=CargoEntity, pos=Vector(10, 0, 0), cargo_max_slots=100
         )
-        self.crg2 = self.ct.world_new_entity(
-            cls=CargoEntity,
-            pos=Vector(10, 0, 0),
-            cargo_max_slots=1
+        self.crg2 = self.ct.world.world_new_entity(
+            cls=CargoEntity, pos=Vector(10, 0, 0), cargo_max_slots=1
         )
 
     def tearDown(self):
@@ -110,7 +114,7 @@ class TestCargo(unittest.TestCase):
     def test_cargo_add_stack(self):
         self.crg0._report_flag = True
         self.crg0.cargo_add_itemstack(OreItem().to_stack())
-        assert self.crg0.cargo_list == [OreItem().to_stack()]
+        assert tuple(self.crg0.cargo) == tuple(CargoContainer((OreItem().to_stack())))
 
     def test_cargo_max_slot(self):
         self.crg0._report_flag = True
@@ -119,13 +123,17 @@ class TestCargo(unittest.TestCase):
         self.crg0.cargo_add_itemstack(OreItem().to_stack())
         assert self.crg0.cargo_has_slot()
 
-        for i in range(8):
+        for i in range(100):
             self.crg0.cargo_add_itemstack(OreItem().to_stack())
         assert self.crg0.cargo_has_slot()
+        assert len(self.crg0.cargo) == 1
 
+        time.sleep(1)
+
+    def test_cargo_mass(self):
+        self.ct.start()
         self.crg0.cargo_add_itemstack(OreItem().to_stack())
-        assert not self.crg0.cargo_has_slot()
-
+        assert self.crg0.cargo.mass == 1
         time.sleep(1)
 
 
@@ -135,22 +143,33 @@ class TestItemEnt(CargoMixin, MsgMixin, Character):
 
 class TestRadar(unittest.TestCase):
     def setUp(self):
+        # Create ct
         self.ct = Continuum()
-        self.target = self.ct.world.world_new_entity(
-            cls=Character,
-            pos=Vector(0, 1, 0)
-        )
-        self.tre = self.ct.world.world_new_entity(
-            cls=TestItemEnt,
-            cargo_max_slots=1,
-            pos=Vector(0, 0, 0)
-        )
 
-        radar = Radar()
+        # Add some targets
+        for i in range(3):
+            self.target = self.ct.world.world_new_entity(
+                cls=Character, pos=Vector(i, 1, 0)
+            )
+
+        # Add the Ent with radar
+        self.tre = self.ct.world.world_new_entity(
+            cls=TestItemEnt, cargo_max_slots=1, pos=Vector(0, 0, 0)
+        )
+        assert isinstance(self.tre, Character)
+        radar = Radar(radius=100, interval_tick=10, auto_scan=True)
         self.tre.cargo_add_itemstack(radar.to_stack())
 
+    def tearDown(self):
+        self.ct.stop()
+
     def test_radar(self):
-        self.tre.
+        op(self.tre.cargo.Radar)
+
+        assert isinstance(self.tre.cargo.Radar[0], Radar)
+        self.ct.start()
+        for i in range(100):
+            print(self.tre.cargo.Radar[0].scan_result)
 
 
 if __name__ == "__main__":
