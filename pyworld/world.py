@@ -74,7 +74,7 @@ class World(Generic[Characters], Entity):
 
     def world_new_entity(
         self, cls: Type[Characters], **kwargs
-    ) -> Optional[Characters]:
+    ) -> Characters:
         # HACK: Use generic to regulate the type of arg 'cls'
         """New an entity in the world. If cls is given, use cls as the generator.
         *args and **kwargs will be passed to cls to new a new entity,

@@ -10,7 +10,7 @@ from pyworld.modules import (
     DebugMixin,
     MsgMixin,
     CargoMixin,
-    Item,
+    ItemBase,
     Radar,
     CargoContainer,
 )
@@ -90,7 +90,7 @@ class CargoEntity(CargoMixin, Character):
 
 
 @dataclass
-class OreItem(Item):
+class OreItem(ItemBase):
     mass = 1
 
 
@@ -113,18 +113,18 @@ class TestCargo(unittest.TestCase):
 
     def test_cargo_add_stack(self):
         self.crg0._report_flag = True
-        self.crg0.cargo_add_itemstack(OreItem().to_stack())
+        self.crg0.cargo_add(OreItem().to_stack())
         assert tuple(self.crg0.cargo) == tuple(CargoContainer((OreItem().to_stack())))
 
     def test_cargo_max_slot(self):
         self.crg0._report_flag = True
         self.ct.start()
 
-        self.crg0.cargo_add_itemstack(OreItem().to_stack())
+        self.crg0.cargo_add(OreItem().to_stack())
         assert self.crg0.cargo_has_slot()
 
         for i in range(100):
-            self.crg0.cargo_add_itemstack(OreItem().to_stack())
+            self.crg0.cargo_add(OreItem().to_stack())
         assert self.crg0.cargo_has_slot()
         assert len(self.crg0.cargo) == 1
 
@@ -132,9 +132,16 @@ class TestCargo(unittest.TestCase):
 
     def test_cargo_mass(self):
         self.ct.start()
-        self.crg0.cargo_add_itemstack(OreItem().to_stack())
+        self.crg0.cargo_add(OreItem().to_stack())
         assert self.crg0.cargo.mass == 1
         time.sleep(1)
+
+    def test_cargo_pop(self):
+        self.ct.start()
+        self.crg1.cargo_add(OreItem())
+        assert hasattr(self.crg1.cargo, 'OreItem')
+        self.crg1.cargo_pop(name='OreItem')
+        assert not hasattr(self.crg1.cargo, 'OreItem')
 
 
 class TestItemEnt(CargoMixin, MsgMixin, Character):
@@ -148,9 +155,13 @@ class TestRadar(unittest.TestCase):
 
         # Add some targets
         for i in range(3):
-            self.target = self.ct.world.world_new_entity(
+            self.ct.world.world_new_entity(
                 cls=Character, pos=Vector(i, 1, 0)
             )
+        self.ct.world.world_new_entity(
+            cls=Character,
+            pos=Vector(110, 0, 0),
+        )
 
         # Add the Ent with radar
         self.tre = self.ct.world.world_new_entity(
@@ -158,7 +169,7 @@ class TestRadar(unittest.TestCase):
         )
         assert isinstance(self.tre, Character)
         radar = Radar(radius=100, interval_tick=10, auto_scan=True)
-        self.tre.cargo_add_itemstack(radar.to_stack())
+        self.tre.cargo_add(radar)
 
     def tearDown(self):
         self.ct.stop()
@@ -166,10 +177,9 @@ class TestRadar(unittest.TestCase):
     def test_radar(self):
         op(self.tre.cargo.Radar)
 
-        assert isinstance(self.tre.cargo.Radar[0], Radar)
+        assert isinstance(self.tre.cargo.Radar, Radar)
         self.ct.start()
-        for i in range(100):
-            print(self.tre.cargo.Radar[0].scan_result)
+        assert len(self.tre.cargo.Radar.scan_result) == 3
 
 
 if __name__ == "__main__":

@@ -58,6 +58,7 @@ class Core:
             username=username,
             passwd_with_salt=passwd_with_salt,
         )
+
         self.ct.world.player_dict[username] = p
         return p
 
