@@ -54,7 +54,7 @@ class ServerRtn:
 
 
 app = FastAPI()
-core = Core("./save-143456.bin")
+core = Core("./save-301286.bin")
 # core = Core()
 
 
