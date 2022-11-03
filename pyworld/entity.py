@@ -10,9 +10,11 @@ class Entity:
 
     An entity of a world should only be created by World.create_entity() method.
     Because an eid should be taken to create an entity.
+
+    Do not use dataclass as decorate to any Entity or Mixin.
     """
 
-    def __init__(self, eid: int, **kwargs):
+    def __init__(self, *, eid: int = -1, **kwargs):
         """Entity type only accept kwargs argumetns."""
         super().__init__(**kwargs)
         self.__static_init__()
@@ -22,8 +24,12 @@ class Entity:
         self.report_flag = False
 
     def __static_init__(self):
-        """Will be called when loading from pickle bytes."""
-        self.__uuid: uuid.UUID = uuid.uuid4()
+        """Will be called when __init__ and loading from pickle bytes.
+
+        All data defined here will be drop when pickling,
+        and re-set after un-pickling.
+
+        Very useful for those property that cannot be pickled."""
         pass
 
     def __eq__(self, other):

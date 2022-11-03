@@ -1,6 +1,6 @@
 from __future__ import annotations
 import random
-from typing import Optional, final, Any
+from typing import Optional, final
 import operator
 import itertools
 
@@ -55,8 +55,8 @@ class Vector():
             [self.z],
         ])
 
-    def length(self) -> np.floating[Any]:
-        return np.linalg.norm(self.raw_array)
+    def length(self) -> float:
+        return float(np.linalg.norm(self.raw_array))
 
     def is_zero(self) -> bool:
         return all(map(operator.eq, self, itertools.repeat(0)))
@@ -71,12 +71,12 @@ class Vector():
     def __array__(self) -> np.ndarray:
         return self.raw_array
 
-    def __add__(self, other):
+    def __add__(self, other) -> Vector:
         if not isinstance(other, Vector):
             raise TypeError(f'Unsupport type {other.__class__}')
         return Vector.from_ndarray(self.raw_array + other.raw_array)
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> Vector:
         if not isinstance(other, Vector):
             raise TypeError(f'Unsupport type {other.__class__}')
         return Vector.from_ndarray(self.raw_array - other.raw_array)
@@ -84,13 +84,13 @@ class Vector():
     def __mul__(self, num: float):
         return Vector.from_ndarray(num * self.raw_array)
 
-    def __div__(self, num: float):
+    def __truediv__(self, num: float):
         return Vector.from_ndarray(self.raw_array / num)
 
     def __iter__(self):
         return (self.x, self.y, self.z).__iter__()
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if isinstance(other, Vector):
             return all(map(operator.eq, self, other))
         else:
@@ -115,3 +115,9 @@ class Vector():
     @property
     def __dict__(self):
         return self.__getstate__()
+
+
+if __name__ == '__main__':
+    v = Vector(1, 0, 1)
+    print(v.length())
+    print(v.raw_array / v.length())

@@ -1,6 +1,13 @@
-from .beings import DebugMixin, MsgInboxMixin, MsgMixin
-from .struct import StructMixin
-from .item import CargoBase, ItemBase, ItemStack, CargoContainer, CargoMixin, Radar
+from pyworld.modules.beings import DebugMixin, MsgInboxMixin, MsgMixin
+from pyworld.modules.item import (
+    CargoBase,
+    ItemBase,
+    ItemStack,
+    CargoContainer,
+    CargoMixin,
+    Radar,
+)
+from pyworld.modules.struct import Structure, BodyMixin, StructMixin
 
 __all__ = [
     "DebugMixin",
@@ -13,4 +20,7 @@ __all__ = [
     "CargoContainer",
     "CargoMixin",
     "Radar",
+    "Structure",
+    "BodyMixin",
+    "StructMixin",
 ]

@@ -69,14 +69,14 @@ async def shutdown_event():
 
 
 @app.get(path="/player/{username}")
-async def get_player_info(username: str, passwd_salt: str):
+async def get_player_info(username: str, passwd: str):
     """Get player info."""
     rtn = ServerRtn()
     if username not in core.player_dict.keys():
         return rtn.fail("Username not registered yet.")
 
     else:
-        if core.player_dict[username].passwd_with_salt == passwd_salt:
+        if core.player_dict[username].passwd_with_salt == passwd:
             p = core.player_dict[username]
             return rtn.entity(p)
         else:
@@ -84,11 +84,12 @@ async def get_player_info(username: str, passwd_salt: str):
 
 
 @app.get(path="/register/{username}")
-async def player_register(username: str, passwd_salt: str):
+async def player_register(username: str, passwd: str):
+    """Register new player."""
     rtn = ServerRtn()
 
     if username in core.player_dict.keys():
         return rtn.fail(message="Username already registered.")
     else:
-        p = core.register(username, passwd_salt)
+        p = core.register(username, passwd)
         return rtn.entity(p)

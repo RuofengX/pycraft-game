@@ -33,7 +33,7 @@ class TestCharacter(unittest.TestCase):
         self.test_character.velocity = Vector(1, 0, 0)
 
         def tick_overload(belong: Continuum):
-            op(belong.entity_dict[1])
+            op(belong.world.entity_dict[1])
 
         self.ct.start()
         time.sleep(0.1)
@@ -80,7 +80,7 @@ class TestWorld(unittest.TestCase):
                 op(ls)
 
     def test_vector_add(self):
-        assert (Vector(0, 1, 0) + Vector(0, 2, 0)).raw_array.tolist() == [[0, 3, 0]]
+        assert (Vector(0, 1, 0) + Vector(0, 2, 0)).raw_array.tolist() == [[0], [3], [0]]
 
     def test_vector_sub(self):
         assert Vector(0, 0, 0) - Vector(10, 0, 0) == Vector(-10, 0, 0)

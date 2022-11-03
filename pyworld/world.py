@@ -16,7 +16,7 @@ class Character(Entity):
     """
 
     def __init__(
-        self, eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
+        self, *, eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
     ):
         super().__init__(eid=eid, **kwargs)
         self.position = pos
@@ -137,7 +137,7 @@ class World(Generic[Characters], Entity):
         else:
             char2 = target2
 
-        if not (char1 and char2):
+        if (char1 is None) or (char2 is None):
             return None
 
         if char1 in ent_list and char2 in ent_list:
