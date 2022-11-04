@@ -1,8 +1,11 @@
 from __future__ import annotations
-from typing import List
+from typing import List, TYPE_CHECKING, TypeVar
 import uuid
 
 from objprint import op  # type: ignore
+
+if TYPE_CHECKING:
+    from pyworld.world import World
 
 
 class Entity:
@@ -10,13 +13,15 @@ class Entity:
 
     An entity of a world should only be created by World.create_entity() method.
     Because an eid should be taken to create an entity.
-
     Do not use dataclass as decorate to any Entity or Mixin.
+
+    Subclasses:
+        World
+        Character
     """
 
-    def __init__(self, *, eid: int = -1, **kwargs):
+    def __init__(self, *, eid: int = -1):
         """Entity type only accept kwargs argumetns."""
-        super().__init__(**kwargs)
         self.__static_init__()
         self.eid = eid
         self.age = 0
@@ -38,7 +43,7 @@ class Entity:
         else:
             return False
 
-    def tick(self, belong: Entity = None):
+    def tick(self, belong: None | World = None) -> None:
         """Describe what a entity should do in a tick."""
         self.age += 1
         self.uuid = uuid.uuid4().int
@@ -50,9 +55,9 @@ class Entity:
             self
         ):  # dir() could show all instance method; __dict__ only returns properties.
             if func[-5:] == "_tick":
-                getattr(self, func)(belong=belong)
+                getattr(self, func)(belong)
 
-    def report(self):
+    def report(self) -> None:
         """Report self, for logging or debuging usage."""
         if self.age % 20 == 0:
             print('-' * 10)
@@ -78,3 +83,7 @@ class Entity:
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
         self.__static_init__()
+
+
+if TYPE_CHECKING:
+    Entities = TypeVar('Entities', bound=Entity)

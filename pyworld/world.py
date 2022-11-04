@@ -1,32 +1,60 @@
 from __future__ import annotations
 from threading import Thread, Lock
-from typing import Dict, Optional, List, TYPE_CHECKING, Type, TypeVar, Generic
+from typing import Dict, Optional, List, TYPE_CHECKING, Type, TypeVar, Generic,\
+    Literal, Callable
+from functools import wraps
 
 
 from pyworld.entity import Entity
 from pyworld.basic import Vector
+
 if TYPE_CHECKING:
     from pyworld.player import Player
+
+
+def tick_isolate(func: Callable[[Character, World], None]):
+    """
+    Used to decorate tick method of character.
+
+    Unblocking run in another thread
+    Record the reference of thread in world._isolated_list
+    """
+    @wraps(func)
+    def rtn(_self, belong: World) -> None:
+        _t = Thread(target=func, args=(_self, belong))
+        belong._isolated_list.append(_t)
+        _t.start()
+        return None
+
+    return rtn
 
 
 class Character(Entity):
     """Stand for every character, belongs to a world
 
+    Character has position, velocity and acceleration.
     All the entity in the world is instance of character.
     """
 
     def __init__(
         self, *, eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
-    ):
+    ) -> None:
         super().__init__(eid=eid, **kwargs)
         self.position = pos
         self.velocity = velo
         self.acceleration = Vector(0, 0, 0)
 
-    def tick(self, belong: World):  # type:ignore
-        """Character has position, velocity and acceleration"""
+    def tick(self, belong: None | World = None) -> None:
+
+        assert belong is not None, ValueError(
+            "Tick method of Character must have valid belong parameter,"
+            "which is a instance of World."
+        )
+
         super().tick(belong=belong)
 
+    @tick_isolate
+    def position_tick(self, belong: World):
         # Velocity will keep changing the position of a entity
         if not self.velocity.is_zero():
             self.position += self.velocity
@@ -39,10 +67,10 @@ class Character(Entity):
             self.acceleration = Vector.zero()
 
 
-Characters = TypeVar("Characters", bound=Character)
+EntityInWorld = TypeVar('EntityInWorld', bound=Character)  # The entity inside world.
 
 
-class World(Generic[Characters], Entity):
+class World(Generic[EntityInWorld], Entity):
     """The container of a set of beings"""
 
     def __init__(self) -> None:
@@ -54,11 +82,14 @@ class World(Generic[Characters], Entity):
     def __static_init__(self):
         super().__static_init__()
         self.__entity_count_lock = Lock()
+        self._isolated_list: List[Thread]
 
-    def tick(self, belong=None) -> None:
-        super().tick(belong=belong)
+    def world_tick(self, belong: Literal[None] = None) -> None:
+        self._isolated_list = []
         for ent in self.entity_dict.values():
             ent.tick(belong=self)
+        for _t in self._isolated_list:
+            _t.join()
 
     def world_entity_plus(self) -> int:
         """will be called whenever a entity is created"""
@@ -73,9 +104,8 @@ class World(Generic[Characters], Entity):
         return new_c
 
     def world_new_entity(
-        self, cls: Type[Characters], **kwargs
-    ) -> Characters:
-        # HACK: Use generic to regulate the type of arg 'cls'
+        self, cls: Type[EntityInWorld], **kwargs
+    ) -> EntityInWorld:
         """New an entity in the world. If cls is given, use cls as the generator.
         *args and **kwargs will be passed to cls to new a new entity,
         but eid is not needed, world itself will generate a correct eid as the
