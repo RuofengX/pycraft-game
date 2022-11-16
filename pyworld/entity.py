@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import List, TYPE_CHECKING, TypeVar
 import uuid
+import pickle
 
 from objprint import op  # type: ignore
 
@@ -43,6 +44,9 @@ class Entity:
         else:
             return False
 
+    def __hash__(self):
+        return self.uuid
+
     def tick(self, belong: None | World = None) -> None:
         """Describe what a entity should do in a tick."""
         self.age += 1
@@ -62,6 +66,14 @@ class Entity:
         if self.age % 20 == 0:
             print('-' * 10)
             op(self.__dict__)
+
+    def get_state(self) -> dict:
+        """Return the entity state dict."""
+        return self.__getstate__()
+
+    def get_state_b(self) -> bytes:
+        """Return the entity pickle binary."""
+        return pickle.dumps(self)
 
     def __getstate__(self) -> dict:
         """Get every that matters,

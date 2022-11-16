@@ -42,7 +42,7 @@ class ServerRtn:
         obj_pickle_base64 = base64.b64encode(pickle.dumps(entity))
         self.detail = {
             "dict": entity.__getstate__(),
-            "obj_pickle_base64": obj_pickle_base64,
+            "obj_pickle_base64": str(obj_pickle_base64),
         }
         return self.to_json()
 
