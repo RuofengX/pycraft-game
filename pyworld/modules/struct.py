@@ -27,12 +27,12 @@ class BodyMixin(Character):
         self.body_completeness: float = 100
         self.is_destroied: bool = False
 
-    def destroy(self) -> None:
+    def _destroy(self) -> None:
         self.is_destroied = True
 
-    def body_tick(self, belong: World):
+    def _body_tick(self, belong: World):
         if self.body_completeness <= 0:
-            self.destroy()
+            self._destroy()
 
 
 class StructMixin(BodyMixin):
@@ -45,6 +45,6 @@ class StructMixin(BodyMixin):
     def __static_init__(self):
         self.__structure_lock = Lock()
 
-    def struct_get_damage(self, loss: Structure):
+    def _struct_get_damage(self, loss: Structure):
         with self.__structure_lock:
             self.structure -= loss

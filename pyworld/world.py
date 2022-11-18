@@ -12,13 +12,16 @@ if TYPE_CHECKING:
     from pyworld.player import Player
 
 
-def tick_isolate(func: Callable[[Character, World], None]):
+def tick_isolate(func: Callable[[Characters, World], None]):
     """
     Used to decorate tick method of character.
 
     Unblocking run in another thread
     Record the reference of thread in world._isolated_list
+
+    Non-block run the decorate function(_tick)
     """
+
     @wraps(func)
     def rtn(_self, belong: World) -> None:
         _t = Thread(target=func, args=(_self, belong))
@@ -44,21 +47,17 @@ class Character(Entity):
         self.velocity = velo
         self.acceleration = Vector(0, 0, 0)
 
-    def tick(self, belong: None | World = None) -> None:
+    def _tick(self, belong: None | World = None) -> None:
 
         assert belong is not None, ValueError(
             "Tick method of Character must have valid belong parameter,"
             "which is a instance of World."
         )
 
-        super().tick(belong=belong)
+        super()._tick(belong=belong)
 
     @tick_isolate
     def position_tick(self, belong: World):
-        # Velocity will keep changing the position of a entity
-        if not self.velocity.is_zero():
-            self.position += self.velocity
-
         # Acceleration will set to 0 after a accelerate
         # if you want to continue accelerate a entity,
         # KEEP A FORCE ON IT.
@@ -66,11 +65,15 @@ class Character(Entity):
             self.velocity += self.acceleration
             self.acceleration = Vector.zero()
 
+        # Velocity will keep changing the position of a entity
+        if not self.velocity.is_zero():
+            self.position += self.velocity
 
-EntityInWorld = TypeVar('EntityInWorld', bound=Character)  # The entity inside world.
+
+Characters = TypeVar('Characters', bound=Character)
 
 
-class World(Generic[EntityInWorld], Entity):
+class World(Generic[Characters], Entity):
     """The container of a set of beings"""
 
     def __init__(self) -> None:
@@ -87,7 +90,7 @@ class World(Generic[EntityInWorld], Entity):
     def world_tick(self, belong: Literal[None] = None) -> None:
         self._isolated_list = []
         for ent in self.entity_dict.values():
-            ent.tick(belong=self)
+            ent._tick(belong=self)
         for _t in self._isolated_list:
             _t.join()
 
@@ -104,8 +107,8 @@ class World(Generic[EntityInWorld], Entity):
         return new_c
 
     def world_new_entity(
-        self, cls: Type[EntityInWorld], **kwargs
-    ) -> EntityInWorld:
+        self, cls: Type[Characters], **kwargs
+    ) -> Characters:
         """New an entity in the world. If cls is given, use cls as the generator.
         *args and **kwargs will be passed to cls to new a new entity,
         but eid is not needed, world itself will generate a correct eid as the
@@ -128,12 +131,12 @@ class World(Generic[EntityInWorld], Entity):
     def world_get_nearby_character(
         self, char: Character, radius: float
     ) -> List[Character]:
-        """Return character instances list nearby the position"""
+        """Return character instances list near the position"""
         rtn = []
 
         for ent in self.entity_dict.values():
             if ent != char:  # Pass char itself
-                dis = self.world_get_lineral_distance(char, ent)
+                dis = self.world_get_natural_distance(char, ent)
                 if dis is not None:
                     if dis - radius < 0:
                         rtn.append(ent)
@@ -149,7 +152,7 @@ class World(Generic[EntityInWorld], Entity):
     def world_character_exists(self, ent: Character) -> bool:
         return ent in self.entity_dict
 
-    def world_natural_distance(
+    def world_get_natural_distance(
         self, target1: Character | int, target2: Character | int
     ) -> Optional[float]:
         """Return the natural distance between char1 and char2.
@@ -202,7 +205,7 @@ class World(Generic[EntityInWorld], Entity):
         if char1 in ent_list and char2 in ent_list:
             p1 = char1.position
             p2 = char2.position
-            dis = abs(p1.x - p2.x) + (p1.y - p2.y) + (p1.z - p2.z)
+            dis = abs(p1.x - p2.x) + abs(p1.y - p2.y) + abs(p1.z - p2.z)
             return dis
 
         return None
@@ -244,7 +247,7 @@ class Continuum(Thread):
             while not self.pause_flag:
                 self.is_idle = False
                 with self.__world_lock:
-                    self.world.tick()
+                    self.world._tick()
                 self.is_idle = True
 
     def pause(self):

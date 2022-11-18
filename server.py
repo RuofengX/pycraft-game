@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum
 import base64
 import pickle
 
@@ -7,33 +6,13 @@ from fastapi import FastAPI
 from fastapi.encoders import jsonable_encoder
 
 from pyworld.world import Entity
+from pyworld.utils import RtnStatus, ReturnResult
 from game import Core
 
 
-class RtnStatus(Enum):
-    SUCCESS = "Success"
-    FAIL = "Fail"
-    NOT_SET = "<Not_set>"
-
-
 @dataclass
-class ServerRtn:
+class ServerRtn(ReturnResult):
     """Easy way to create json response."""
-
-    status: RtnStatus = RtnStatus.NOT_SET
-    detail: dict | str = "Nothing to say here."
-
-    def fail(self, message: str | dict):
-        """Create a fail responde with detail=message."""
-        self.status = RtnStatus.FAIL
-        self.detail = message
-        return self.to_json()
-
-    def success(self, message: str | dict):
-        """Create a success responde with detail=message."""
-        self.status = RtnStatus.SUCCESS
-        self.detail = message
-        return self.to_json()
 
     def entity(self, entity: Entity):
         """Create a success responde
@@ -46,10 +25,11 @@ class ServerRtn:
         }
         return self.to_json()
 
-    def to_dict(self):
-        return {"status": self.status.value, "detail": self.detail}
-
-    def to_json(self):
+    def to_json(self) -> str:
+        """
+        Use fastapi jsonable encoder to
+        override the default json.dumps
+        """
         return jsonable_encoder(self.to_dict())
 
 

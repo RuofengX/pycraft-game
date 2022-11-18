@@ -11,17 +11,9 @@ class ControlMixin(Entity):
     """
     A magic mixin that provide a control protocol,
     To make the class as controllable.
+
+    It will expose all mixins' methods, use _ to mask inner method.
     """
-
-    _mask_method = [
-        'tick',
-        'report',
-        'cached_proeprty'
-    ]  # Mask some inner methods
-
-    _mask_property = [
-        'report_flag'
-    ]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -48,14 +40,12 @@ class ControlMixin(Entity):
         rtn = {}
         for func_name in dir(self):
             if func_name[0] != '_':  # Ignore attr start with _
-                if func_name not in ControlMixin._mask_method:
-                    # Ignore attr in mask
-                    mtd = getattr(self, func_name)
-                    if callable(mtd):
-                        docs = getattr(self, func_name).__doc__
-                        docs = str(docs)
-                        docs = docs.strip()
-                        rtn[func_name] = docs
+                mtd = getattr(self, func_name)
+                if callable(mtd):
+                    docs = getattr(self, func_name).__doc__
+                    docs = str(docs)
+                    docs = docs.strip()
+                    rtn[func_name] = docs
         return rtn
 
     @cache
@@ -64,14 +54,13 @@ class ControlMixin(Entity):
         Return a properties list
         name as the key, value as the values.
         """
+
         rtn = {}
         for property_name in dir(self):
             if property_name[0] != '_':  # Ignore attr start with _
-                if property_name not in ControlMixin._mask_property:
-                    # Ignore sttr in mask
-                    pty = getattr(self, property_name)
-                    if not callable(pty):
-                        rtn[property_name] = str(pty)
+                pty = getattr(self, property_name)
+                if not callable(pty):
+                    rtn[property_name] = str(pty)
         return rtn
 
     def ctrl_safe_call(self, func_name: str, **kwargs):
@@ -80,11 +69,14 @@ class ControlMixin(Entity):
         func_name is the target method's name,
         use **kwargs attachment as the arguments.
         """
+
         rtn = {
             'status': 'NOT CALL',
             'detail': ''
         }  # Used to storage the result.
         # HACK: may intergrated with the server.py ServerRtn class.
+
+        self.ctrl_refresh_cache()  # Refresh the cache.
 
         try:
             if func_name in self.ctrl_list_method():
@@ -101,7 +93,7 @@ class ControlMixin(Entity):
 
 if __name__ == '__main__':
     a = ControlMixin(eid=1)
-    print(a.ctrl_list_method())
+    print(a.ctrl_list_method().keys())
 
     print('#' * 88)
 

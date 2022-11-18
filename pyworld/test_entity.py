@@ -13,7 +13,7 @@ class IsolateEntity(Character):
     @tick_isolate
     def isolate_test_tick(self, belong: World | None) -> None:
         time.sleep(1)
-        print(1)
+        print(self.age)
 
 
 class TestEntity(unittest.TestCase):
@@ -31,10 +31,9 @@ class TestEntity(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip('Passed')
     def test_iso_tick(self):
         for i in range(3):
-            self.world.tick()
+            self.world._tick()
         op(self.world.entity_dict)
 
 

@@ -47,24 +47,25 @@ class Entity:
     def __hash__(self):
         return self.uuid
 
-    def tick(self, belong: None | World = None) -> None:
+    def _tick(self, belong: None | World = None) -> None:
         """Describe what a entity should do in a tick."""
         self.age += 1
         self.uuid = uuid.uuid4().int
         if self.report_flag:
-            self.report()
+            self._report()
 
         # Call every function named after _tick of class
         for func in dir(
             self
-        ):  # dir() could show all instance method; __dict__ only returns properties.
-            if func[-5:] == "_tick":
-                getattr(self, func)(belong)
+        ):  # dir() could show all instance method and properties;
+            # __dict__ only returns properties.
+            if len(func) > 5:  # not _tick itself
+                if func[-5:] == "_tick":  # named after _tick
+                    getattr(self, func)(belong)
 
-    def report(self) -> None:
+    def _report(self) -> None:
         """Report self, for logging or debuging usage."""
         if self.age % 20 == 0:
-            print('-' * 10)
             op(self.__dict__)
 
     def get_state(self) -> dict:

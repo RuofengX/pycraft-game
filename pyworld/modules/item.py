@@ -20,18 +20,15 @@ class CargoBase:
 
     Properties:
         name: Name of the thing.
-        num
 
     Methods:
         tick
     """
 
-    num: int = field(default=1, init=False)
-
     def __post_init__(self):
         self.name = self.__class__.__name__
 
-    def tick(self, o: CargoMixin, w: World):
+    def _tick(self, o: CargoMixin, w: World):
         pass
 
 
@@ -42,9 +39,10 @@ class ItemBase(CargoBase):
     """
 
     mass: float = field(default=0, init=False)
+    num: int = field(default=1, init=False)
 
     def to_stack(self):
-        return ItemStack([self])
+        return ItemStack(data=[self])
 
 
 @final
@@ -52,6 +50,8 @@ class ItemBase(CargoBase):
 class ItemStack(CargoBase):
     """
     Final class, item stack.
+    ItemStack it self will not ensure the items in the stack
+    is the same item.
 
     Properties:
         data: list of container
@@ -163,7 +163,7 @@ class CargoMixin(Character):
         self.__cargo_lock = Lock()
 
     def cargo_has_slot(self) -> bool:
-        """Return the cargo wether has empty space"""
+        """Return whether the cargo has empty space."""
         if self.cargo_max_slots < 0:  # minus zero slots always True
             return True
         else:
@@ -172,7 +172,7 @@ class CargoMixin(Character):
             else:
                 return False
 
-    def cargo_add(self, cb: CargoBase) -> bool:
+    def _cargo_add(self, cb: CargoBase) -> bool:
         """
         Use this method to add item stack onto one's cargo.
         Once the itemstack is added to the entity instance,
@@ -188,7 +188,7 @@ class CargoMixin(Character):
             else:
                 return False
 
-    def cargo_pop(self, name: str) -> Optional[CargoBase]:
+    def _cargo_pop(self, name: str) -> Optional[CargoBase]:
         """
         Pop out the index of cargo.
         Also delete the cargo_<itemstack> property of the itemstack
@@ -202,11 +202,11 @@ class CargoMixin(Character):
             stack = self.cargo.pop(name)
             return stack
 
-    def cargo_tick(self, belong: World):
+    def _cargo_tick(self, belong: World):
         """Tick every itemstack and item."""
         with self.__cargo_lock:
             for c_thing in self.cargo:
-                c_thing.tick(o=self, w=belong)
+                c_thing._tick(o=self, w=belong)
 
 
 class Radar(ItemBase):
@@ -236,7 +236,7 @@ class Radar(ItemBase):
         else:
             self.auto_scan = target
 
-    def tick(self, o: CargoMixin, w: World):
+    def _tick(self, o: CargoMixin, w: World):
         if self.auto_scan:
             if o.age % self.interval_tick == 0:
                 self.scan_result = w.world_get_nearby_character(

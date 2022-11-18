@@ -23,7 +23,7 @@ class DebugMixin:
         super().__init__(*args, **kwargs)
         self.__DEBUG_FLAG = True
 
-    def debug_tick(self, belong=Entity):
+    def _debug_tick(self, belong=Entity):
         op(self)
         op(belong)
 
@@ -125,11 +125,11 @@ class MsgMixin(MsgInboxMixin, Character):
         return payload.msg_id
 
     @classmethod
-    def msg_target_has_inbox(cls, target: Character) -> TypeGuard[Type[MsgInboxMixin]]:
+    def _msg_target_has_inbox(cls, target: Character) -> TypeGuard[Type[MsgInboxMixin]]:
         """Check target character has inbox"""
         return hasattr(target, "msg_inbox")
 
-    def msg_tick(self, belong: World) -> None:
+    def _msg_tick(self, belong: World) -> None:
         """Automatically send messages from outbox to target.inbox"""
         with self.__msg_outbox_lock:
             for p in self.msg_outbox:
@@ -140,7 +140,7 @@ class MsgMixin(MsgInboxMixin, Character):
                         eid=p.target_eid
                     ):  # Entity in World.entity_dict is always a Character
                         """Check target exists silent"""
-                        dis = belong.world_natural_distance(p.target_eid, self)
+                        dis = belong.world_get_natural_distance(p.target_eid, self)
 
                         if dis is None:
                             p.status_update(MsgStatus.NOT_FOUND)
@@ -149,7 +149,7 @@ class MsgMixin(MsgInboxMixin, Character):
                         if dis <= p.radius:
                             """Only send msg in radius"""
                             target = belong.entity_dict[p.target_eid]
-                            if self.msg_target_has_inbox(target):  # duck type
+                            if self._msg_target_has_inbox(target):  # duck type
                                 target.msg_inbox.append(p.content)
                                 p.status_update(MsgStatus.SENT)
                             else:
@@ -161,11 +161,11 @@ class MsgMixin(MsgInboxMixin, Character):
                 elif p.result is MsgStatus.ENSURE:
                     """Case ENSURE"""
                     if belong.world_get_entity(eid=p.target_eid):
-                        dis = belong.world_natural_distance(p.target_eid, self)
+                        dis = belong.world_get_natural_distance(p.target_eid, self)
                         if dis:
                             if dis <= p.radius:
                                 target = belong.entity_dict[p.target_eid]
-                                if self.msg_target_has_inbox(target):
+                                if self._msg_target_has_inbox(target):
                                     target.msg_inbox.append(p.content)
                                     # Only this case would set status to sentnt
                                     p.status_update(MsgStatus.SENT)

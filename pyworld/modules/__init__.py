@@ -13,7 +13,6 @@ __all__ = [
     "DebugMixin",
     "MsgInboxMixin",
     "MsgMixin",
-    "StructMixin",
     "CargoBase",
     "ItemBase",
     "ItemStack",

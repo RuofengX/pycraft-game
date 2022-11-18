@@ -25,25 +25,23 @@ class TestCharacter(unittest.TestCase):
             # pprint(belong.entity_dict)
             op(belong)
 
-        self.test_character.tick = tick_overload
+        self.test_character._tick = tick_overload
         time.sleep(0.1)
 
-    @unittest.skip("passed")
     def test_moving(self):
         self.test_character.velocity = Vector(1, 0, 0)
 
-        def tick_overload(belong: Continuum):
-            op(belong.world.entity_dict[1])
+        for i in range(3):
+            self.ct.world._tick()
 
-        self.ct.start()
-        time.sleep(0.1)
+        assert self.test_character.position == Vector(3, 0, 0)
 
-    @unittest.skip("passed")
     def test_acc(self):
         self.test_character.acceleration = Vector(1, 0, 0)
-        self.test_character._report_flag = True
-        self.ct.start()
-        time.sleep(0.1)
+        for i in range(3):
+            self.ct.world._tick()
+
+        assert self.test_character.position == Vector(2, 0, 0)
 
     def tearDown(self):
         self.ct.stop()
@@ -110,6 +108,11 @@ class TestWorld(unittest.TestCase):
                 }
             )
             time.sleep(0.5)
+
+    def test_tick(self):
+        self.ct.start()
+        time.sleep(1)
+        assert self.test_char.age > 0
 
     def tearDown(self):
         self.ct.stop()
