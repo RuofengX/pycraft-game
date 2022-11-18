@@ -33,6 +33,9 @@ class TestControl(unittest.TestCase):
     def test_list_method(self):
         print(self.a1.ctrl_list_method())
 
+    def test_list_properties(self):
+        print(self.a1.ctrl_list_property())
+
 
 if __name__ == '__main__':
     unittest.main()

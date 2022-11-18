@@ -72,16 +72,20 @@ class TestMsgMixin(unittest.TestCase):
 
     def test_msg_send(self):
         self.ct.start()
-        self.msg0.msg_send(self.msg1.eid, b"test, radius=0.001", 0.001)
-        self.msg0.msg_send(self.msg1.eid, b"test, radius=10", 10)
-        self.msg0.msg_send(self.msg1.eid, b"test, radius=1000", 1000)
+        self.msg0.msg_radius = 0.001
+        self.msg0.msg_send(self.msg1.eid, b"test, radius=0.001")
+        self.msg0.msg_radius = 10
+        self.msg0.msg_send(self.msg1.eid, b"test, radius=10")
+        self.msg0.msg_radius = 1000
+        self.msg0.msg_send(self.msg1.eid, b"test, radius=1000")
         time.sleep(1)
         assert self.msg1.msg_inbox == [b"test, radius=10", b"test, radius=1000"]
 
     def test_msg_ensure(self):
-        self.msg0.msg_send_ensure(self.msg2.eid, b"test, ensure", 100)
+        self.msg0.msg_radius = 5
+        self.msg0.msg_send_ensure(self.msg2.eid, b"test, ensure")
         self.ct.start()
-        time.sleep(0.1)
+        time.sleep(1)
         assert self.msg2.msg_inbox == [b"test, ensure"]
 
 

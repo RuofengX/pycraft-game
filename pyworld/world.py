@@ -57,7 +57,7 @@ class Character(Entity):
         super()._tick(belong=belong)
 
     @tick_isolate
-    def position_tick(self, belong: World):
+    def _position_tick(self, belong: World):
         # Acceleration will set to 0 after a accelerate
         # if you want to continue accelerate a entity,
         # KEEP A FORCE ON IT.

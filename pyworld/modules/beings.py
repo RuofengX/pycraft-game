@@ -98,26 +98,29 @@ class MsgMixin(MsgInboxMixin, Character):
         super().__init__(*args, **kwargs)
         self.msg_outbox: List[MsgPayload] = []
         self.__msg_outbox_lock = Lock()
+        self.msg_radius: float = 100.0
 
-    def msg_send(self, target_eid: int, content: bytes, radius: float) -> int:
+    def msg_send(self, target_eid: int, content: bytes) -> int:
         """Send message to other entity with target_eid,
         target entity must have msg_mixin.
 
-        Message will be limited in radius.
+        Message will be limited in msg_radius.
 
         Return the msg_id.
         """
-        payload = MsgPayload(target_eid=target_eid, content=content, radius=radius)
+        payload = MsgPayload(
+            target_eid=target_eid, content=content, radius=self.msg_radius
+        )
         with self.__msg_outbox_lock:
             self.msg_outbox.append(payload)
         return payload.msg_id
 
-    def msg_send_ensure(self, target_eid: int, content: bytes, radius: float):
+    def msg_send_ensure(self, target_eid: int, content: bytes):
         """Send the msg every tick until sent successfully."""
         payload = MsgPayload(
             target_eid=target_eid,
             content=content,
-            radius=radius,
+            radius=self.msg_radius,
             result=MsgStatus.ENSURE,
         )
         with self.__msg_outbox_lock:
