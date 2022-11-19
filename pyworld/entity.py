@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import List, TYPE_CHECKING, TypeVar
 import uuid
 import pickle
+from threading import Lock
 
 from objprint import op  # type: ignore
 
@@ -28,6 +29,8 @@ class Entity:
         self.age = 0
         self.uuid: int = uuid.uuid4().int
         self.report_flag = False
+        if not self.__static_called_check:
+            raise SyntaxError("Some mixins' __static_init__ mothods not call super()!")
 
     def __static_init__(self):
         """Will be called when __init__ and loading from pickle bytes.
@@ -36,7 +39,8 @@ class Entity:
         and re-set after un-pickling.
 
         Very useful for those property that cannot be pickled."""
-        pass
+        self._tick_lock = Lock()
+        self.__static_called_check = True
 
     def __eq__(self, other):
         if isinstance(other, Entity):
@@ -49,19 +53,20 @@ class Entity:
 
     def _tick(self, belong: None | World = None) -> None:
         """Describe what a entity should do in a tick."""
-        self.age += 1
-        self.uuid = uuid.uuid4().int
-        if self.report_flag:
-            self._report()
 
-        # Call every function named after _tick of class
-        for func in dir(
-            self
-        ):  # dir() could show all instance method and properties;
-            # __dict__ only returns properties.
-            if len(func) > 5:  # not _tick itself
-                if func[-5:] == "_tick":  # named after _tick
-                    getattr(self, func)(belong)
+        with self._tick_lock:
+            self.age += 1
+            if self.report_flag:
+                self._report()
+
+            # Call every function named after _tick of class
+            for func in dir(
+                self
+            ):  # dir() could show all instance method and properties;
+                # __dict__ only returns properties.
+                if len(func) > 5:  # not _tick itself
+                    if func[-5:] == "_tick":  # named after _tick
+                        getattr(self, func)(belong)
 
     def _report(self) -> None:
         """Report self, for logging or debuging usage."""
@@ -77,13 +82,16 @@ class Entity:
         return pickle.dumps(self)
 
     def __getstate__(self) -> dict:
-        """Get every that matters,
+        """
+        Get everything that matters,
 
         Throw hidden things like _thread.Lock(),
         which cannot be serialized or jsonable.
 
-        Those ugly properties should be set in __static_init__ method
-        and will be automatically initiate by __init__ method."""
+        Those non-picklable properties should be set in __static_init__ method
+        and will be automatically initiate by __init__ method.
+        """
+
         status = self.__dict__.copy()
         pop_list: List[str] = []
         for key in status.keys():

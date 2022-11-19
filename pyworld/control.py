@@ -1,10 +1,15 @@
 from __future__ import annotations
-from typing import Dict, Any
-from functools import cache
+from typing import Dict, Any, Callable
+from functools import cache, cached_property
 
 from pprint import pprint as print
 
 from pyworld.entity import Entity
+from pyworld.utils import Result
+
+
+class ControlResult(Result):
+    pass
 
 
 class ControlMixin(Entity):
@@ -18,6 +23,10 @@ class ControlMixin(Entity):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    @cached_property
+    def _ctrl_dir_cache(self) -> list:
+        return dir(self)
+
     def ctrl_refresh_cache(self) -> None:
         """
         Clear all ctrl property cache.
@@ -26,7 +35,6 @@ class ControlMixin(Entity):
 
         for c in [
                 self.ctrl_list_method,
-                self.ctrl_list_property,
         ]:
             c.cache_clear()
 
@@ -38,17 +46,17 @@ class ControlMixin(Entity):
         """
 
         rtn = {}
-        for func_name in dir(self):
-            if func_name[0] != '_':  # Ignore attr start with _
-                mtd = getattr(self, func_name)
-                if callable(mtd):
-                    docs = getattr(self, func_name).__doc__
-                    docs = str(docs)
-                    docs = docs.strip()
-                    rtn[func_name] = docs
+        with self._tick_lock:
+            for func_name in dir(self):
+                if func_name[0] != '_':  # Ignore attr start with _
+                    mtd = getattr(self, func_name)
+                    if callable(mtd):
+                        docs = getattr(self, func_name).__doc__
+                        docs = str(docs)
+                        docs = docs.strip()
+                        rtn[func_name] = docs
         return rtn
 
-    @cache
     def ctrl_list_property(self) -> Dict[str, Any]:
         """
         Return a properties list
@@ -56,37 +64,33 @@ class ControlMixin(Entity):
         """
 
         rtn = {}
-        for property_name in dir(self):
-            if property_name[0] != '_':  # Ignore attr start with _
-                pty = getattr(self, property_name)
-                if not callable(pty):
-                    rtn[property_name] = str(pty)
-        return rtn
+        with self._tick_lock:
+            for property_name in dir(self):
+                if property_name[0] != '_':  # Ignore attr start with _
+                    pty = getattr(self, property_name)
+                    if not callable(pty):
+                        rtn[property_name] = str(pty)
+            return rtn
 
-    def ctrl_safe_call(self, func_name: str, **kwargs):
+    def ctrl_safe_call(self, func_name: str, **kwargs) -> ControlResult:
         """
         Call a func list in self.ctrl_list().
         func_name is the target method's name,
         use **kwargs attachment as the arguments.
         """
+        # TODO: make it asyncable and run in next tick.
 
-        rtn = {
-            'status': 'NOT CALL',
-            'detail': ''
-        }  # Used to storage the result.
-        # HACK: may intergrated with the server.py ServerRtn class.
+        rtn = ControlResult()
 
         self.ctrl_refresh_cache()  # Refresh the cache.
 
         try:
             if func_name in self.ctrl_list_method():
-                mtd = getattr(self, func_name)
-                result = mtd(**kwargs)
-                rtn['status'] = 'SUCCESS'
-                rtn['detail'] = result
+                mtd: Callable = getattr(self, func_name)
+                result: Any = mtd(**kwargs)
+                rtn.success(message=str(result))
         except Exception as e:
-            rtn['status'] = 'FAIL'
-            rtn['detail'] = str(e)
+            rtn.fail(str(e))
         finally:
             return rtn
 

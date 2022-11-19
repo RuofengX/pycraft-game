@@ -41,7 +41,7 @@ class TestCharacter(unittest.TestCase):
         for i in range(3):
             self.ct.world._tick()
 
-        assert self.test_character.position == Vector(2, 0, 0)
+        assert self.test_character.position == Vector(3, 0, 0)
 
     def tearDown(self):
         self.ct.stop()

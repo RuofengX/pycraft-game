@@ -43,6 +43,7 @@ class StructMixin(BodyMixin):
         self.structure = Structure(0, 0, 100)
 
     def __static_init__(self):
+        super().__static_init__()
         self.__structure_lock = Lock()
 
     def _struct_get_damage(self, loss: Structure):

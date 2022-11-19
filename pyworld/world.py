@@ -1,6 +1,6 @@
 from __future__ import annotations
 from threading import Thread, Lock
-from typing import Dict, Optional, List, TYPE_CHECKING, Type, TypeVar, Generic,\
+from typing import Dict, Optional, List, TYPE_CHECKING, Type, Generic, TypeVar,\
     Literal, Callable
 from functools import wraps
 
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from pyworld.player import Player
 
 
-def tick_isolate(func: Callable[[Characters, World], None]):
+def tick_isolate(func: Callable[[Character, World], None]):
     """
     Used to decorate tick method of character.
 
@@ -40,7 +40,9 @@ class Character(Entity):
     """
 
     def __init__(
-        self, *, eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
+        self,
+        *,
+        eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
     ) -> None:
         super().__init__(eid=eid, **kwargs)
         self.position = pos
@@ -70,17 +72,21 @@ class Character(Entity):
             self.position += self.velocity
 
 
-Characters = TypeVar('Characters', bound=Character)
+C = TypeVar('C', bound=Character)
 
 
-class World(Generic[Characters], Entity):
-    """The container of a set of beings"""
+class World(Generic[C], Entity):
+    """
+    The container of a set of entity.
+
+    Entity inner the world must be Character.
+    """
 
     def __init__(self) -> None:
         super().__init__(eid=0)
         self.entity_count = 0  # entity in total when the world created
         self.entity_dict: Dict[int, Character] = {}
-        self.player_dict: Dict[str, Player] = {}  # HACK: here Character is Player.
+        self.player_dict: Dict[str, Player] = {}  # maintained by game.py.
 
     def __static_init__(self):
         super().__static_init__()
@@ -107,14 +113,18 @@ class World(Generic[Characters], Entity):
         return new_c
 
     def world_new_entity(
-        self, cls: Type[Characters], **kwargs
-    ) -> Characters:
-        """New an entity in the world. If cls is given, use cls as the generator.
-        *args and **kwargs will be passed to cls to new a new entity,
+        self, cls: Type[C], pos: Vector, **kwargs
+    ) -> C:
+        """
+        New an entity in the world.
+
+        **kwargs will be passed to cls to new a new entity,
         but eid is not needed, world itself will generate a correct eid as the
-        first argument of cls."""
+        first argument of cls build method.
+        """
+
         eid = self.world_entity_plus()
-        new_e = cls(eid=eid, **kwargs)
+        new_e = cls(eid=eid, pos=pos, **kwargs)
         self.entity_dict[eid] = new_e
         return new_e
 
@@ -233,7 +243,7 @@ class Continuum(Thread):
 
         Cannot restart!
         """
-        self.pause_flag = True
+        self.pause()
         self.stop_flag = True
         if self.is_alive():
             self.join()
@@ -243,12 +253,19 @@ class Continuum(Thread):
 
         Use `.start()` method instead.
         """
+
         while not self.stop_flag:
+            # PAUSE | IDLE | TICK
             while not self.pause_flag:
+                # IDLE | TICK
                 self.is_idle = False
+                # TICK
                 with self.__world_lock:
                     self.world._tick()
                 self.is_idle = True
+                # IDLE
+            # PAUSE
+        # EXIT
 
     def pause(self):
         """Wait until the game pause.

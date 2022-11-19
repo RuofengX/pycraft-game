@@ -1,7 +1,8 @@
 from __future__ import annotations
 import pickle
 import random
-from typing import Optional
+import os
+from warnings import warn
 
 from pyworld.world import World, Continuum
 from pyworld.player import Player
@@ -9,7 +10,7 @@ from pyworld.basic import Vector
 
 
 class Core:
-    def __init__(self, save_file_path: Optional[str] = None):
+    def __init__(self, save_file_path: str | None = None):
 
         world = None
         if save_file_path:
@@ -18,11 +19,12 @@ class Core:
                     world = pickle.load(f)
                     assert isinstance(world, World)
             except AssertionError:
-                print('Pickled object is not World type.')
+                warn('Pickled object is not World type.')
             except pickle.UnpicklingError:
-                print('Save file is invalid.')
+                warn('Save file is invalid.')
             except FileNotFoundError:
-                print('Save file path is not exist.')
+                warn('Save file path is not exist. Create one.')
+                os.mknod(save_file_path)
         else:
             # Set new file path.
             rnd_id = random.randint(100000, 999999)
@@ -32,46 +34,50 @@ class Core:
         self.ct = Continuum(world=world)
         self.save_file_path: str = save_file_path
 
-    def start(self):
-        if self.ct.is_alive():
-            self.ct.start()
+    def start(self) -> None:
+        self.ct.start()
 
-    def stop(self):
+    def stop(self, save: bool = True) -> None:
         self.ct.stop()
-        self.save()
+        if save:
+            self.save()
 
-    def save(self):
+    def save(self) -> None:
         with open(self.save_file_path, mode="wb") as f:
             self.ct.pause()
             pickle.dump(self.ct.world, f, protocol=5)
             self.ct.resume()
 
-    def register(self, username: str, passwd_with_salt: str) -> Player:
-        """Register a new player entity in the world,
+    def register(self, username: str, passwd: str) -> Player:
+        """
+        Register a new player entity in the world,
         Use random position and username, passwd given.
 
         Return the player object.
         """
+
         p = self.ct.world.world_new_entity(
             cls=Player,
             pos=Vector.random(),
             username=username,
-            passwd_with_salt=passwd_with_salt,
+            passwd=passwd,
+            world=self.ct.world,
         )
 
-        self.ct.world.player_dict[username] = p
         return p
 
-    def check_login(self, username: str, passwd_with_salt: str) -> bool:
+    def check_login(self, username: str, passwd: str) -> bool:
         """Check username and passwd is valid"""
-        if username not in self.ct.world.player_dict.keys():
+
+        if username not in self.ct.world.player_dict:
             return False
         else:
             return (
-                self.player_dict[username].passwd_with_salt == passwd_with_salt
+                self.player_dict[username].passwd == passwd
             )
 
     @property
     def player_dict(self):
         """Shorten the self.ct.world.player_dict."""
+
         return self.ct.world.player_dict

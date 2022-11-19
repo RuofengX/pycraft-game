@@ -19,8 +19,8 @@ from pyworld.world import Entity, World, Character
 class DebugMixin:
     """For those needs"""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.__DEBUG_FLAG = True
 
     def _debug_tick(self, belong=Entity):
@@ -37,8 +37,8 @@ class MsgInboxMixin(Character):
     A entity whit MsgInbox must have an position, or msg sent to it will always failure.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.msg_inbox: List[bytes] = []
 
 
@@ -94,11 +94,14 @@ class MsgMixin(MsgInboxMixin, Character):
     Extra limits and restricts should be implemented on higher level class.
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.msg_outbox: List[MsgPayload] = []
-        self.__msg_outbox_lock = Lock()
         self.msg_radius: float = 100.0
+
+    def __static_init__(self):
+        self.__msg_outbox_lock = Lock()
+        super().__static_init__()
 
     def msg_send(self, target_eid: int, content: bytes) -> int:
         """Send message to other entity with target_eid,
