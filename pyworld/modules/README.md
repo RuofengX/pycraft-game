@@ -5,7 +5,7 @@
 Every being or entity have their own property or method,
 but some of these functions are same. So we write those same
 reuseable function as some mixin modules.
-Each mixin class act as a set of ports, like Interface in Java.
+Each mixin class acts as a set of ports, like Interface in Java.
 
 ## Name regulation
 
@@ -33,6 +33,14 @@ For example:
 
 ```
 
+## Public method and the relationship with control
+
+ControlMixin is a special module, which provide some integrated func between entity and upper level.
+It will expose all the public methods of an entity, so take care with your mixin, do not add too much
+arguments into your public method.
+
+All of the inner method and property(named began with '_') would be OK.
+
 ## The `_tick` method
 
 Entity instance will run every method named after '_tick' in every tick.
@@ -53,6 +61,11 @@ For example, an entity instance with MsgMixin and Character should wrote in thes
 If a mixin module(class) is only available to some specific entity type, inherit it,
 like `class MsgMixin(Character)` means that MsgMixin could only apply to the type
 of `Character`.
+
+## '__init__Arguments
+
+All arguments used in `__init__` function of mixin modules should be keywords-arguments, and should be marked after *,
+e.g `def __init__(self, *, pos, velo)...`
 
 ## Serialization and Persistence
 
