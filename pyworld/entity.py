@@ -23,14 +23,14 @@ class Entity:
     """
 
     def __init__(self, *, eid: int = -1):
-        """Entity type only accept kwargs argumetns."""
+        """Entity type only accept kwargs arguments."""
         self.__static_init__()
         self.eid = eid
         self.age = 0
         self.uuid: int = uuid.uuid4().int
         self.report_flag = False
         if not self.__static_called_check:
-            raise SyntaxError("Some mixins' __static_init__ mothods not call super()!")
+            raise SyntaxError("Some mixins' __static_init__ methods not call super()!")
 
     def __static_init__(self):
         """Will be called when __init__ and loading from pickle bytes.
@@ -69,7 +69,7 @@ class Entity:
                         getattr(self, func)(belong)
 
     def _report(self) -> None:
-        """Report self, for logging or debuging usage."""
+        """Report self, for logging or debugging usage."""
         if self.age % 20 == 0:
             op(self.__dict__)
 

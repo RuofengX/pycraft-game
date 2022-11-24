@@ -45,7 +45,7 @@ class Character(Entity):
         eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
     ) -> None:
         super().__init__(eid=eid, **kwargs)
-        self.position = pos
+        self.position = pos  # yes, character knows the absolute position.
         self.velocity = velo
         self.acceleration = Vector(0, 0, 0)
 
@@ -191,11 +191,11 @@ class World(Generic[C], Entity):
 
         return None
 
-    def world_get_lineral_distance(
+    def world_get_lineal_distance(
         self, target1: Character | int, target2: Character | int
     ) -> Optional[float]:
         """Return the distance but in sum(delta x, y, z) like,
-        (I call it lineral distance)
+        (I call it lineal distance)
         Return None, if any of character provided not exists."""
         ent_list = self.entity_dict.values()
 

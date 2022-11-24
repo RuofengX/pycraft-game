@@ -105,7 +105,7 @@ class CargoContainer(UserDict):
         __iter__: return generator of self.values()
 
     Notes:
-        proxy behavior: any dot propreties getter will be proxyed to
+        proxy behavior: any dot properties getter will be proxy to
                         the [] function.
 
     """
@@ -238,8 +238,8 @@ class Radar(ItemBase):
 
     def _tick(self, o: CargoMixin, w: World):
         if self.auto_scan:
-            if o.age % self.interval_tick == 0:
-                self.scan_result = w.world_get_nearby_character(
+            if o.age % self.interval_tick == 0:  # use the interval
+                self.characters_list = w.world_get_nearby_character(
                     char=o, radius=self.radius
                 )
                 self.last_update = w.age

@@ -99,7 +99,7 @@ class TestWorld(unittest.TestCase):
                     "ticks": self.ct.age,
                     "p1": self.test_char.position,
                     "p2": self.test_char2.position,
-                    "lineral_distance": self.ct.world.world_get_lineral_distance(
+                    "lineal_distance": self.ct.world.world_get_lineal_distance(
                         self.test_char, self.test_char2
                     ),
                     "natural_distance": self.ct.world.world_natural_distance(
