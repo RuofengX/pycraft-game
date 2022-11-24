@@ -1,7 +1,6 @@
 from __future__ import annotations
 import pickle
 import random
-import os
 from warnings import warn
 
 from pyworld.world import World, Continuum
@@ -24,7 +23,8 @@ class Core:
                 warn('Save file is invalid.')
             except FileNotFoundError:
                 warn('Save file path is not exist. Create one.')
-                os.mknod(save_file_path)
+                with open(save_file_path, mode='wb') as f:
+                    f.close()
         else:
             # Set new file path.
             rnd_id = random.randint(100000, 999999)
