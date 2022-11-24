@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import NamedTuple
+
 from threading import Lock
+from typing import NamedTuple
 
 from pyworld.world import Character, World
 

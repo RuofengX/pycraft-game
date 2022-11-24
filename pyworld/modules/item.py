@@ -1,14 +1,16 @@
-from __future__ import annotations
 """
 Item class and CargoMixin
 
 Item class and CargoMixin are important parts of pyworld.
 These system provide different 'abilities' for different instances.
 """
-from typing import List, Optional, final, Any
+
+from __future__ import annotations
+
+from collections import UserDict
 from dataclasses import dataclass, field
 from threading import Lock
-from collections import UserDict
+from typing import Any, List, Optional, final
 
 from pyworld.world import Character, World
 

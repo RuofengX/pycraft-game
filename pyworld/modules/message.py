@@ -3,15 +3,16 @@ filename: message.py
 comment: Containing basic modules, like DebugMixin, MsgMixin.
 """
 from __future__ import annotations
-from typing import List, TypeGuard, Type
+
+import uuid
+from dataclasses import dataclass, field
 from enum import Enum
 from threading import Lock
-from dataclasses import dataclass, field
-import uuid
+from typing import List, Type, TypeGuard
 
 from objprint import op  # type:ignore
 
-from pyworld.world import Entity, World, Character
+from pyworld.world import Character, Entity, World
 
 # TODO: Use Metaclass to regulate those generate of Mixin module.
 

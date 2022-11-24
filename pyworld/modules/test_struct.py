@@ -1,8 +1,8 @@
 import unittest
 
-from pyworld.world import Continuum
-from pyworld.modules import struct
 from pyworld.basic import Vector
+from pyworld.modules import struct
+from pyworld.world import Continuum
 
 
 class TestStruct(unittest.TestCase):
