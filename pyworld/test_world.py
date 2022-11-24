@@ -1,7 +1,8 @@
-import unittest
 import time
-from objprint import op  # type:ignore
+import unittest
 from pprint import pprint
+
+from objprint import op  # type:ignore
 
 from pyworld.world import Continuum, Vector
 

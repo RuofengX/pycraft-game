@@ -1,16 +1,11 @@
 import unittest
 from pprint import pprint as print
 
-from pyworld.world import Continuum
-from pyworld.control import ControlMixin
 from pyworld.basic import Vector
-from pyworld.modules import (
-    DebugMixin,
-    MsgMixin,
-    StructMixin,
-    CargoMixin,
-    BodyMixin,
-)
+from pyworld.control import ControlMixin
+from pyworld.modules import (BodyMixin, CargoMixin, DebugMixin, MsgMixin,
+                             StructMixin)
+from pyworld.world import Continuum
 
 
 class AllInOneEntity(

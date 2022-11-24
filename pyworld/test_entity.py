@@ -1,11 +1,12 @@
 from __future__ import annotations
-import unittest
+
 import time
+import unittest
 
 from objprint import op  # type: ignore
 
-from pyworld.world import World, Character, tick_isolate
 from pyworld.basic import Vector
+from pyworld.world import Character, World, tick_isolate
 
 
 class IsolateEntity(Character):

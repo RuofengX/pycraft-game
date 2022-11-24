@@ -1,7 +1,7 @@
-from enum import Enum
 import json
-from typing import Dict
 from dataclasses import dataclass
+from enum import Enum
+from typing import Dict
 
 
 class RtnStatus(Enum):

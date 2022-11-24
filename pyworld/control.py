@@ -1,8 +1,8 @@
 from __future__ import annotations
-from typing import Dict, Any, Callable
-from functools import cache, cached_property
 
+from functools import cache, cached_property
 from pprint import pprint as print
+from typing import Any, Callable, Dict, List
 
 from pyworld.entity import Entity
 from pyworld.utils import Result
@@ -23,10 +23,6 @@ class ControlMixin(Entity):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    @cached_property
-    def _ctrl_dir_cache(self) -> list:
-        return dir(self)
-
     def ctrl_refresh_cache(self) -> None:
         """
         Clear all ctrl property cache.
@@ -34,9 +30,17 @@ class ControlMixin(Entity):
         """
 
         for c in [
+                self._ctrl_dir_cache,
                 self.ctrl_list_method,
         ]:
             c.cache_clear()
+
+    @cached_property
+    def _ctrl_dir_cache(self) -> list:
+        return dir(self)
+
+    def __dir__(self) -> List[str]:
+        return self._ctrl_dir_cache
 
     @cache
     def ctrl_list_method(self) -> Dict[str, str]:
@@ -78,7 +82,6 @@ class ControlMixin(Entity):
         func_name is the target method's name,
         use **kwargs attachment as the arguments.
         """
-        # TODO: make it asyncable and run in next tick.
 
         rtn = ControlResult()
 

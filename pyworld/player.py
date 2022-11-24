@@ -1,5 +1,5 @@
-from pyworld.modules import MsgMixin, StructMixin, CargoMixin
 from pyworld.control import ControlMixin
+from pyworld.modules import CargoMixin, MsgMixin, StructMixin
 from pyworld.world import Character, World
 
 

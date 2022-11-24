@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import List, TYPE_CHECKING, TypeVar
-import uuid
+
 import pickle
+import uuid
 from threading import Lock
+from typing import TYPE_CHECKING, List, TypeVar
 
 from objprint import op  # type: ignore
 

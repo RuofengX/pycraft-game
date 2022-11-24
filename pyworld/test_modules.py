@@ -1,19 +1,13 @@
-import unittest
 import time
+import unittest
 from dataclasses import dataclass
-
-from objprint import op  # type:ignore
 from pprint import pprint as print
 
-from pyworld.world import Continuum, Vector, Character, Entity
-from pyworld.modules import (
-    DebugMixin,
-    MsgMixin,
-    CargoMixin,
-    ItemBase,
-    Radar,
-    CargoContainer,
-)
+from objprint import op  # type:ignore
+
+from pyworld.modules import (CargoContainer, CargoMixin, DebugMixin, ItemBase,
+                             MsgMixin, Radar)
+from pyworld.world import Character, Continuum, Entity, Vector
 
 
 class DebugEntity(DebugMixin, Character):

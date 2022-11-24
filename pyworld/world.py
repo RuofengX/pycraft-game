@@ -1,12 +1,12 @@
 from __future__ import annotations
-from threading import Thread, Lock
-from typing import Dict, Optional, List, TYPE_CHECKING, Type, Generic, TypeVar,\
-    Literal, Callable
+
 from functools import wraps
+from threading import Lock, Thread
+from typing import (TYPE_CHECKING, Callable, Dict, Generic, List, Literal,
+                    Optional, Type, TypeVar)
 
-
-from pyworld.entity import Entity
 from pyworld.basic import Vector
+from pyworld.entity import Entity
 
 if TYPE_CHECKING:
     from pyworld.player import Player
