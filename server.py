@@ -1,13 +1,18 @@
 import base64
+import json
 from dataclasses import dataclass
+from typing import Any, Dict
 
-from fastapi import FastAPI
+import dictdiffer
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 
 from game import Core
+from pyworld.control import ControlMixin
 from pyworld.player import Player
 from pyworld.utils import Result, RtnStatus
 from pyworld.world import Entity
+from utils import ClientCommand
 
 
 @dataclass
@@ -18,7 +23,7 @@ class ServerRtn(Result):
     Extend some useful fail states.
     """
 
-    stage = 'Server'
+    stage = "Server"
 
     def entity(self, entity: Entity) -> str:
         """
@@ -35,7 +40,7 @@ class ServerRtn(Result):
         return self.to_json()
 
     def name_not_valid(self) -> str:
-        return self.fail("Username not registered yet.").to_json()
+        return self.fail("Username not registered yet.")
 
     def name_already_used(self) -> str:
         return self.fail("Username already used.")
@@ -48,6 +53,7 @@ class ServerRtn(Result):
         Use fastapi jsonable encoder to
         override the default json.dumps
         """
+
         return jsonable_encoder(self.to_dict())
 
 
@@ -55,7 +61,7 @@ app = FastAPI()
 core = Core("./save-301286.bin")
 # core = Core()
 
-# TODO: Add temp token that no need to use passwd every time.
+# TODO: Add auth middleware
 
 
 @app.on_event("startup")
@@ -93,7 +99,7 @@ async def register(username: str, passwd: str):
     return rtn.entity(p)
 
 
-@app.get(path="/ctrl/get/method")
+@app.get(path="/ctrl/get-method")
 async def ctrl_get_method(username: str, passwd: str):
     """Get all controllable methods names and docs."""
     rtn = ServerRtn()
@@ -103,12 +109,10 @@ async def ctrl_get_method(username: str, passwd: str):
 
     p = core.player_dict[username]
 
-    return rtn.success(
-        p.ctrl_list_method()
-    )
+    return rtn.success(p.ctrl_list_method())
 
 
-@app.get(path="/ctrl/get/property")
+@app.get(path="/ctrl/get-property")
 async def ctrl_get_properties(username: str, passwd: str):
     """Get all controllable properties."""
     rtn = ServerRtn()
@@ -118,16 +122,11 @@ async def ctrl_get_properties(username: str, passwd: str):
 
     p: Player = core.player_dict[username]
 
-    return rtn.success(
-        p.ctrl_list_property()
-    )
+    return rtn.success(p.ctrl_list_property())
 
 
-@app.put(path="/ctrl/run")
-async def ctrl_run(
-    *,
-    username: str, passwd: str, func_name: str, keywords: dict
-):
+@app.put(path="/ctrl/call")
+async def ctrl_call(*, username: str, passwd: str, func_name: str, keywords: dict):
     rtn = ServerRtn()
 
     if not core.check_login(username, passwd):
@@ -141,3 +140,69 @@ async def ctrl_run(
     result: Result = p.ctrl_safe_call(func_name, **keywords)
     rtn.success(result.to_dict())
     return rtn.to_json()
+
+
+class PropertyCache(Dict[int, dict]):
+    """
+    Temp Memorize cache,
+
+    Used to transfer diff data in websocket connection
+    """
+
+    def __init__(self):
+        super().__init__(self)
+
+    def get_raw(self, ent: ControlMixin) -> Dict[str, Any]:
+        return ent.ctrl_list_property()
+
+    def get_entity_property(self, ent: ControlMixin) -> str:
+        rtn = self.get_raw(ent)
+        self[ent.uuid] = rtn
+        return json.dumps(rtn)
+
+    def get_diff_property(self, ent: ControlMixin) -> str:
+        ent_id = ent.uuid
+        raw: dict = self.get_raw(ent)
+        if ent_id not in self:
+            self[ent_id] = {}
+        diff = list(dictdiffer.diff(self[ent.uuid], raw))
+        self[ent.uuid] = raw
+        return json.dumps({'diff': diff})
+
+
+# TODO: Test Needed
+@app.websocket(path="/ctrl/diff")
+async def ctrl_diff(
+    *,
+    ws: WebSocket,
+    username: str,
+    passwd: str,
+):
+    await ws.accept()
+
+    print((username, passwd))
+    if not core.check_login(username, passwd):
+        rtn = ServerRtn()
+        return rtn.name_not_valid()
+
+    p: Player = core.player_dict[username]
+    cache = PropertyCache()
+    stop_flag: bool = False
+
+    while not stop_flag:
+        try:
+            client_cmd = await ws.receive_text()  # receive first
+            cmd = ClientCommand(client_cmd)  # raise ValueError
+            if cmd is ClientCommand.FULL:
+                await ws.send_text(cache.get_entity_property(p))
+            elif cmd is ClientCommand.DIFF:
+                await ws.send_text(cache.get_diff_property(p))
+            elif cmd is ClientCommand.DONE:
+                stop_flag = True
+
+        except ValueError:
+            stop_flag = True
+            await ws.close()
+
+        except WebSocketDisconnect:
+            stop_flag = True

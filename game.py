@@ -1,11 +1,12 @@
 from __future__ import annotations
+
 import pickle
 import random
 from warnings import warn
 
-from pyworld.world import World, Continuum
-from pyworld.player import Player
 from pyworld.basic import Vector
+from pyworld.player import Player
+from pyworld.world import Continuum, World
 
 
 class Core:

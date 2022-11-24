@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from functools import wraps
 from threading import Lock, Thread
 from typing import (TYPE_CHECKING, Callable, Dict, Generic, List, Literal,
@@ -24,6 +25,7 @@ def tick_isolate(func: Callable[[Character, World], None]):
 
     @wraps(func)
     def rtn(_self, belong: World) -> None:
+        # TODO: Use thread-pool to limit the max num of thread
         _t = Thread(target=func, args=(_self, belong))
         belong._isolated_list.append(_t)
         _t.start()
@@ -40,9 +42,7 @@ class Character(Entity):
     """
 
     def __init__(
-        self,
-        *,
-        eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
+        self, *, eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
     ) -> None:
         super().__init__(eid=eid, **kwargs)
         self.position = pos  # yes, character knows the absolute position.
@@ -72,7 +72,7 @@ class Character(Entity):
             self.position += self.velocity
 
 
-C = TypeVar('C', bound=Character)
+C = TypeVar("C", bound=Character)
 
 
 class World(Generic[C], Entity):
@@ -91,14 +91,17 @@ class World(Generic[C], Entity):
     def __static_init__(self):
         super().__static_init__()
         self.__entity_count_lock = Lock()
+        self.__entity_dict_lock = Lock()
         self._isolated_list: List[Thread]
 
     def world_tick(self, belong: Literal[None] = None) -> None:
         self._isolated_list = []
-        for ent in self.entity_dict.values():
-            ent._tick(belong=self)
-        for _t in self._isolated_list:
-            _t.join()
+        time.sleep(0.1)
+        with self.__entity_dict_lock:
+            for ent in self.entity_dict.values():
+                ent._tick(belong=self)
+            for _t in self._isolated_list:
+                _t.join()
 
     def world_entity_plus(self) -> int:
         """will be called whenever a entity is created"""
@@ -107,14 +110,13 @@ class World(Generic[C], Entity):
         return self.entity_count
 
     def world_new_character(self, pos: Vector) -> Character:
-        eid = self.world_entity_plus()
-        new_c = Character(eid=eid, pos=pos)
-        self.entity_dict[eid] = new_c
-        return new_c
+        with self.__entity_dict_lock:
+            eid = self.world_entity_plus()
+            new_c = Character(eid=eid, pos=pos)
+            self.entity_dict[eid] = new_c
+            return new_c
 
-    def world_new_entity(
-        self, cls: Type[C], pos: Vector, **kwargs
-    ) -> C:
+    def world_new_entity(self, cls: Type[C], pos: Vector, **kwargs) -> C:
         """
         New an entity in the world.
 
@@ -123,14 +125,16 @@ class World(Generic[C], Entity):
         first argument of cls build method.
         """
 
-        eid = self.world_entity_plus()
-        new_e = cls(eid=eid, pos=pos, **kwargs)
-        self.entity_dict[eid] = new_e
-        return new_e
+        with self.__entity_dict_lock:
+            eid = self.world_entity_plus()
+            new_e = cls(eid=eid, pos=pos, **kwargs)
+            self.entity_dict[eid] = new_e
+            return new_e
 
     def world_del_entity(self, eid: int) -> None:
-        if eid in self.entity_dict.keys():
-            self.entity_dict.pop(eid)
+        with self.__entity_dict_lock:
+            if eid in self.entity_dict.keys():
+                self.entity_dict.pop(eid)
 
     def world_get_entity(self, eid: int) -> Optional[Character]:
         if eid in self.entity_dict.keys():

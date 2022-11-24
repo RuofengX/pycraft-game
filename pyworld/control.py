@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from functools import cache, cached_property
 from pprint import pprint as print
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict
 
 from pyworld.entity import Entity
 from pyworld.utils import Result
@@ -22,27 +21,8 @@ class ControlMixin(Entity):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.__cache: Dict[str, dict] = {}
 
-    def ctrl_refresh_cache(self) -> None:
-        """
-        Clear all ctrl property cache.
-        Useful when the instance's attribute is changed.
-        """
-
-        for c in [
-                self._ctrl_dir_cache,
-                self.ctrl_list_method,
-        ]:
-            c.cache_clear()
-
-    @cached_property
-    def _ctrl_dir_cache(self) -> list:
-        return dir(self)
-
-    def __dir__(self) -> List[str]:
-        return self._ctrl_dir_cache
-
-    @cache
     def ctrl_list_method(self) -> Dict[str, str]:
         """
         Return a functions dict
@@ -52,7 +32,7 @@ class ControlMixin(Entity):
         rtn = {}
         with self._tick_lock:
             for func_name in dir(self):
-                if func_name[0] != '_':  # Ignore attr start with _
+                if func_name[0] != "_":  # Ignore attr start with _
                     mtd = getattr(self, func_name)
                     if callable(mtd):
                         docs = getattr(self, func_name).__doc__
@@ -70,7 +50,7 @@ class ControlMixin(Entity):
         rtn = {}
         with self._tick_lock:
             for property_name in dir(self):
-                if property_name[0] != '_':  # Ignore attr start with _
+                if property_name[0] != "_":  # Ignore attr start with _
                     pty = getattr(self, property_name)
                     if not callable(pty):
                         rtn[property_name] = str(pty)
@@ -98,21 +78,23 @@ class ControlMixin(Entity):
             return rtn
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     a = ControlMixin(eid=1)
     print(a.ctrl_list_method().keys())
 
-    print('#' * 88)
+    print("#" * 88)
 
-    setattr(a, 'test', b'1')
+    setattr(a, "test", b"1")
     import pickle
-    setattr(a, 'test_b', pickle.dumps(a))
+
+    setattr(a, "test_b", pickle.dumps(a))
     r = a.ctrl_list_property()
     print(r)
 
     def test(k):
         print(k)
-    setattr(a, 'test', test)
+
+    setattr(a, "test", test)
     a.ctrl_list_method.cache_clear()
-    rtn = a.ctrl_safe_call('test')
+    rtn = a.ctrl_safe_call("test")
     print(rtn)
