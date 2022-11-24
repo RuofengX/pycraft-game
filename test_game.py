@@ -1,13 +1,13 @@
+import os
+import pickle
 import time
 import unittest
-import pickle
-import os
 
 from objprint import op as print  # type:ignore
 
 from game import Core
-from pyworld.world import Character
 from pyworld.basic import Vector
+from pyworld.world import Character
 
 
 class TestCore(unittest.TestCase):

@@ -1,11 +1,11 @@
-from unittest import TestCase, skip, main
+from pprint import pprint
+from unittest import TestCase, main, skip
 
 from fastapi.encoders import jsonable_encoder
-from pprint import pprint
 from objprint import op  # type: ignore
 
-from server import ServerRtn
 from pyworld.entity import Entity
+from server import ServerRtn
 
 
 class TestServerRtn(TestCase):

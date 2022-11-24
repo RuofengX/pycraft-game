@@ -35,25 +35,25 @@ class Result:
             self.stage = 'UNKNOWN'  # if class is Result, set to UNKNOWN
 
     def fatal(self, message: str | dict):
-        """Create a fatal responde with detail=message."""
+        """Create a fatal respond with detail=message."""
         self.status = RtnStatus.FATAL
         self.detail = message
         return self.to_json()
 
     def fail(self, message: str | dict):
-        """Create a fail responde with detail=message."""
+        """Create a fail respond with detail=message."""
         self.status = RtnStatus.FAIL
         self.detail = message
         return self.to_json()
 
     def warning(self, message: str | dict):
-        """Create a warning responde with detail=message."""
+        """Create a warning respond with detail=message."""
         self.status = RtnStatus.WARNING
         self.detail = message
         return self.to_json()
 
     def success(self, message: str | dict):
-        """Create a success responde with detail=message."""
+        """Create a success respond with detail=message."""
         self.status = RtnStatus.SUCCESS
         self.detail = message
         return self.to_json()
