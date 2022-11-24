@@ -1,8 +1,9 @@
 from __future__ import annotations
+
+import itertools
+import operator
 import random
 from typing import Optional, final
-import operator
-import itertools
 
 import numpy as np
 
@@ -13,12 +14,12 @@ class Vector():
     __slots__ = ['x', 'y', 'z', 'raw_array']  # FIXME slots cannot be pickled
 
     @classmethod
-    def zero(cls):
+    def zero(cls) -> Vector:
         """return a vector instance which is zero"""
         return Vector(0, 0, 0)
 
     @classmethod
-    def random(cls, limit: Optional[int] = None):
+    def random(cls, limit: Optional[int] = None) -> Vector:
         """return a random vector instance which x,y,z is in range of limit"""
         if limit:
             return Vector(*(random.randint(-limit, limit) for i in range(3)))
@@ -44,9 +45,9 @@ class Vector():
         self.y = y
         self.z = z
         if update_array:
-            self._updata_array()
+            self._update_array()
 
-    def _updata_array(self):
+    def _update_array(self):
         """Manually update inner array.
         Row vector is used in pyworld."""
         self.raw_array = np.array([
@@ -110,7 +111,7 @@ class Vector():
         self.x = state['x']
         self.y = state['y']
         self.z = state['z']
-        self._updata_array()
+        self._update_array()
 
     @property
     def __dict__(self):
