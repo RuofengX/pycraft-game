@@ -1,4 +1,4 @@
-from pyworld.modules.beings import DebugMixin, MsgInboxMixin, MsgMixin
+from pyworld.modules.message import DebugMixin, MsgInboxMixin, MsgMixin
 from pyworld.modules.item import (
     CargoBase,
     ItemBase,
@@ -10,16 +10,16 @@ from pyworld.modules.item import (
 from pyworld.modules.struct import Structure, BodyMixin, StructMixin
 
 __all__ = [
-    "DebugMixin",
-    "MsgInboxMixin",
-    "MsgMixin",
-    "CargoBase",
-    "ItemBase",
-    "ItemStack",
-    "CargoContainer",
-    "CargoMixin",
-    "Radar",
-    "Structure",
-    "BodyMixin",
-    "StructMixin",
+    DebugMixin,
+    MsgInboxMixin,
+    MsgMixin,
+    CargoBase,
+    ItemBase,
+    ItemStack,
+    CargoContainer,
+    CargoMixin,
+    Radar,
+    Structure,
+    BodyMixin,
+    StructMixin,
 ]

@@ -1,5 +1,5 @@
 """
-filename: beings.py
+filename: message.py
 comment: Containing basic modules, like DebugMixin, MsgMixin.
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ class DebugMixin:
 class MsgInboxMixin(Character):
     """MsgInboxMixin provides a basic inbox function and a static status enum.
 
-    An entity could inheritage this mixin to gain the abiliaty for receiving msg.
+    An entity could inherit this mixin to gain the ability for receiving msg.
     Or, like a duck type, if an entity have msg_inbox property, it could receive msg.
 
     A entity whit MsgInbox must have an position, or msg sent to it will always failure.
@@ -46,7 +46,7 @@ class MsgStatus(Enum):
     """Enum of MsgStatus"""
 
     PENDING = "Msg is in outbox and waiting for next msg_tick."
-    SENT = "Msg is successfuly sent to target."
+    SENT = "Msg is successfully sent to target."
     NO_INBOX = "Target is found in send-radius, \
         but target does not have property msg_inbox."
     NOT_FOUND = "Target is not found in send radius. Ensure your target_id is correct."
@@ -88,7 +88,7 @@ class MsgPayload:
 class MsgMixin(MsgInboxMixin, Character):
     """MsgMixin is a module provided basic message of an entity.
 
-    Like a visiable-light shape of a thing in real world.
+    Like a visible-light shape of a thing in real world.
 
     It provides a basic level control of send & receive msg.
     Extra limits and restricts should be implemented on higher level class.
@@ -173,6 +173,6 @@ class MsgMixin(MsgInboxMixin, Character):
                                 target = belong.entity_dict[p.target_eid]
                                 if self._msg_target_has_inbox(target):
                                     target.msg_inbox.append(p.content)
-                                    # Only this case would set status to sentnt
+                                    # Only this case would set status to sent
                                     p.status_update(MsgStatus.SENT)
                     return

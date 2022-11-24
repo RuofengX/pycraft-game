@@ -1,4 +1,4 @@
-# pyworld - a 3D sandbox with full extention
+# pyworld - a 3D sandbox with full extension
 
 ## Entity, the space
 
@@ -9,12 +9,12 @@ Continuum inherits World entity, which only contains characters but no tick-loop
 
 Character is a special kind of entity. It represents all the entity in a world. Every character has a position, velocity and acceleration.
 Entity has tick() method, which will be called in every tick-loop.
-Character could only be created by a Continuum in fact, 
+Character could only be created by a Continuum in fact,
 
-New type of Character could be created and should herit the Character class. 
-Also an entity could gain different capacity by herit multiple MixinModule.
+New type of Character could be created and should inherit the Character class.
+Also an entity could gain different capacity by inherit multiple MixinModule.
 
-For more MixinModule usage please refers to the docs of `./beings.py` .
+For more MixinModule usage please refers to the docs of `./messages.py`.
 
 ## Ticks, the time
 
@@ -23,6 +23,6 @@ Time runs in a tick-loop in pyworld. Continuum maintains the tick-loop. Continuu
 When a tick happens, firstly the Continuum would call tick() method of every entity of `continuum_instance.entity_dict`.
 Then the `entity_instance.tick()` method would call every method named after '_tick' of itself.
 
-## Tips for Devlopers
+## Tips for Developers
 
-Please seeing the pyworld/README.md for more infomation.
+Please seeing the pyworld/README.md for more information.
