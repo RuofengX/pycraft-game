@@ -29,8 +29,7 @@ class TestServerRtn(TestCase):
 
 
 class TestWebSocket(AsyncTestCase):
-
-    @skip('mask')
+    @skip("mask")
     async def test_full(self):
         async with connect(
             "ws://localhost:8000/ctrl/diff?username=ruofeng&passwd=111111"
@@ -41,15 +40,17 @@ class TestWebSocket(AsyncTestCase):
 
     async def test_diff(self):
         async with connect(
-             "ws://localhost:8000/ctrl/diff?username=ruofeng&passwd=111111"
+            "ws://localhost:8000/ctrl/diff?username=ruofeng&passwd=111111"
         ) as conn:
             await conn.send("full")
             await conn.recv()
             import time
+
             time.sleep(1)
             await conn.send("diff")
             recv = await conn.recv()
             import json
+
             result = json.loads(recv)
             print(result)
 

@@ -115,6 +115,7 @@ async def ctrl_get_method(username: str, passwd: str):
 @app.get(path="/ctrl/get-property")
 async def ctrl_get_properties(username: str, passwd: str):
     """Get all controllable properties."""
+
     rtn = ServerRtn()
 
     if not core.check_login(username, passwd):
@@ -167,7 +168,7 @@ class PropertyCache(Dict[int, dict]):
             self[ent_id] = {}
         diff = list(dictdiffer.diff(self[ent.uuid], raw))
         self[ent.uuid] = raw
-        return json.dumps({'diff': diff})
+        return json.dumps({"diff": diff})
 
 
 # TODO: Test Needed
@@ -177,7 +178,7 @@ async def ctrl_diff(
     ws: WebSocket,
     username: str,
     passwd: str,
-):
+) -> None:
     await ws.accept()
 
     print((username, passwd))
