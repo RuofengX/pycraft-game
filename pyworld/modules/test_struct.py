@@ -17,9 +17,9 @@ class TestStruct(unittest.TestCase):
         del self.struct
         self.ct.stop()
 
-    def test_destory(self):
+    def test_destroy(self):
         self.struct.destroy()
-        assert self.struct.is_destroied
+        assert self.struct.is_destroyed
 
 
 if __name__ == "__main__":

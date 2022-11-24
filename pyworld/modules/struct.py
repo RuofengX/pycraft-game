@@ -25,10 +25,10 @@ class BodyMixin(Character):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.body_completeness: float = 100
-        self.is_destroied: bool = False
+        self.is_destroyed: bool = False
 
     def _destroy(self) -> None:
-        self.is_destroied = True
+        self.is_destroyed = True
 
     def _body_tick(self, belong: World):
         if self.body_completeness <= 0:
