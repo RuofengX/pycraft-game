@@ -23,7 +23,6 @@ class TestCharacter(unittest.TestCase):
         self.ct.start()
 
         def tick_overload(belong: Continuum):
-            ...
             # pprint(belong.entity_dict)
             op(belong)
 
