@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Dict
 
@@ -21,6 +21,8 @@ class Result:
            Will auto generate by class name if not set.
     status: the result status, success or fail. Only key to do match.
     detail: the return or error message, should be readable dict | str. Readable.
+
+    # TODO: Use pydantic.BaseModel to regulate the data.
 
     """
 
