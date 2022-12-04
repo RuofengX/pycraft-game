@@ -57,7 +57,8 @@ class Vector:
                 [self.x],
                 [self.y],
                 [self.z],
-            ]
+            ],
+            dtype='float64',
         )
 
     def length(self) -> float:
@@ -73,7 +74,6 @@ class Vector:
         unit_array = raw / np.full_like(raw, self.length())
         return Vector.from_ndarray(unit_array)
 
-    # FIXME: TYPEERROR
     def __array_interface__(self) -> dict:
         return self.raw_array.__array_interface__
 
@@ -123,7 +123,5 @@ class Vector:
         return self.__getstate__()
 
 
-if __name__ == "__main__":
-    v = Vector(1, 0, 1)
-    print(v.length())
-    print(v.raw_array / v.length())
+Vec3 = Vector
+Vec = Vector
