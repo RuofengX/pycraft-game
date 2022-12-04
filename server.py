@@ -8,7 +8,7 @@ from game import Core
 from pyworld.player import Player
 from pyworld.utils import Result, RtnStatus
 from pyworld.world import Entity
-from utils import PropertyCache, WebSocketPayload, WebSocketStage, WSCommand
+from utils import PropertyCache, WSCommand, WSPayload, WSStage
 
 
 @dataclass
@@ -147,14 +147,14 @@ async def ctrl_stream(
     passwd: str,
 ) -> None:
 
-    payload: WebSocketPayload = WebSocketPayload()
+    payload: WSPayload = WSPayload()
 
     # STAGE INIT
-    payload.stage = WebSocketStage.INIT
+    payload.stage = WSStage.INIT
     await ws.accept()
 
     # STAGE CHECK
-    payload.stage = WebSocketStage.LOGIN
+    payload.stage = WSStage.LOGIN
     if not core.check_login(username, passwd):
         payload.detail = {}
         await payload.send_ws(ws)
@@ -171,13 +171,13 @@ async def ctrl_stream(
             pass
 
             # STAGE CLIENT_SEND
-            payload.stage = WebSocketStage.CLIENT_SEND
-            client_req = await WebSocketPayload.from_read_ws(ws)
-            assert client_req.stage is WebSocketStage.CLIENT_SEND
+            payload.stage = WSStage.CLIENT_SEND
+            client_req = await WSPayload.from_read_ws(ws)
+            assert client_req.stage is WSStage.CLIENT_SEND
             client_cmd = client_req.command
 
             # STAGE SERVER_PREPARE
-            payload.stage = WebSocketStage.SERVER_PREPARE
+            payload.stage = WSStage.SERVER_PREPARE
 
             match client_cmd:
                 case WSCommand.PING:
@@ -186,23 +186,19 @@ async def ctrl_stream(
                     stop_flag = True
                     payload.close(reason="Client send the CLOSE command.")
                 case WSCommand.ALL:
-                    payload.all(
-                        detail=cache.get_entity_property(ent=p)
-                    )
+                    payload.all(detail=cache.get_entity_property(ent=p))
                 case WSCommand.DIFF:
-                    payload.diff(
-                        detail=cache.get_diff_property(ent=p)
-                    )
+                    payload.diff(detail=cache.get_diff_property(ent=p))
                 case WSCommand.CMD:
                     payload.cmd(
                         detail=p.ctrl_safe_call(
-                            func_name=client_req.detail['func_name'],
-                            kwargs=client_req.detail['kwargs']
+                            func_name=client_req.detail["func_name"],
+                            kwargs=client_req.detail["kwargs"],
                         ).to_dict()
                     )
 
             # STAGE SERVER_SEND
-            payload.stage = WebSocketStage.SERVER_SEND
+            payload.stage = WSStage.SERVER_SEND
             await payload.send_ws(ws)
 
         except ValueError:

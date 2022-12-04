@@ -105,7 +105,7 @@ class Payload:
         return rtn
 
 
-class WebSocketStage(Enum):
+class WSStage(Enum):
     UNKNOWN = 0x00
     INIT = 0x10
     LOGIN = 0x20
@@ -149,7 +149,7 @@ class WSCommand(Enum):
 
 
 @dataclass
-class WebSocketPayload(Payload):
+class WSPayload(Payload):
     """
     Override: WebSocket use JSON to exchange data by force.
     Properties:
@@ -161,49 +161,47 @@ class WebSocketPayload(Payload):
 
     default_encode: EncodeMode = field(default=EncodeMode.JSON, init=False)
 
-    stage: WebSocketStage = field(default=WebSocketStage.UNKNOWN)
+    stage: WSStage = field(default=WSStage.UNKNOWN)
     command: WSCommand = WSCommand.PING
     detail: Dict[str, Any] = {}
 
     @staticmethod
-    async def from_read_ws(ws: WebSocket) -> WebSocketPayload:
-        return WebSocketPayload.from_bytes(
-            await ws.receive_bytes(), mode=EncodeMode.JSON
-        )
+    async def from_read_ws(ws: WebSocket) -> WSPayload:
+        return WSPayload.from_bytes(await ws.receive_bytes(), mode=EncodeMode.JSON)
 
-    def ping(self) -> WebSocketPayload:
+    def ping(self) -> WSPayload:
         self.command = WSCommand.PING
         self.detail = {}
         return self
 
-    def close(self, reason: str = "") -> WebSocketPayload:
+    def close(self, reason: str = "") -> WSPayload:
         self.command = WSCommand.CLOSE
         self.detail = {
             "reason": reason,
         }
         return self
 
-    def all(self, detail: dict) -> WebSocketPayload:
+    def all(self, detail: dict) -> WSPayload:
         self.command = WSCommand.ALL
         self.detail = detail
         return self
 
-    def diff(self, detail: dict) -> WebSocketPayload:
+    def diff(self, detail: dict) -> WSPayload:
         self.command = WSCommand.DIFF
         self.detail = detail
         return self
 
     @overload
-    def cmd(self, *, func_name: str, kw_dict: dict) -> WebSocketPayload:
+    def cmd(self, *, func_name: str, kw_dict: dict) -> WSPayload:
         """For client to order the command."""
         ...
 
     @overload
-    def cmd(self, *, detail: dict) -> WebSocketPayload:
+    def cmd(self, *, detail: dict) -> WSPayload:
         """For server to send the result"""
         ...
 
-    def cmd(self, **kwargs) -> WebSocketPayload:
+    def cmd(self, **kwargs) -> WSPayload:
         self.command = WSCommand.CMD
         match kwargs.keys():
             case ["detail"]:
