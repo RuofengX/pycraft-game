@@ -8,7 +8,7 @@ from game import Core
 from pyworld.player import Player
 from pyworld.utils import Result, RtnStatus
 from pyworld.world import Entity
-from utils import PropertyCache, WebSocketPayload, WebSocketStage
+from utils import PropertyCache, WebSocketPayload, WebSocketStage, WSCommand
 
 
 @dataclass
@@ -157,7 +157,7 @@ async def ctrl_stream(
     payload.stage = WebSocketStage.LOGIN
     if not core.check_login(username, passwd):
         payload.detail = {}
-        await payload.send(ws)
+        await payload.send_ws(ws)
         await ws.close()
 
     p: Player = core.player_dict[username]
@@ -168,20 +168,55 @@ async def ctrl_stream(
     while not stop_flag:
         try:
             # STAGE CLIENT_PREPARE
+            pass
+
             # STAGE CLIENT_SEND
             payload.stage = WebSocketStage.CLIENT_SEND
-            client_cmd = await WebSocketPayload.from_read_ws(ws)
-            assert client_cmd.stage is WebSocketStage.CLIENT_SEND
-            
-
+            client_req = await WebSocketPayload.from_read_ws(ws)
+            assert client_req.stage is WebSocketStage.CLIENT_SEND
+            client_cmd = client_req.command
 
             # STAGE SERVER_PREPARE
+            payload.stage = WebSocketStage.SERVER_PREPARE
+
+            match client_cmd:
+                case WSCommand.PING:
+                    payload.ping()
+                case WSCommand.CLOSE:
+                    stop_flag = True
+                    payload.close(reason="Client send the CLOSE command.")
+                case WSCommand.ALL:
+                    payload.all(
+                        detail=cache.get_entity_property(ent=p)
+                    )
+                case WSCommand.DIFF:
+                    payload.diff(
+                        detail=cache.get_diff_property(ent=p)
+                    )
+                case WSCommand.CMD:
+                    payload.cmd(
+                        detail=p.ctrl_safe_call(
+                            func_name=client_req.detail['func_name'],
+                            kwargs=client_req.detail['kwargs']
+                        ).to_dict()
+                    )
 
             # STAGE SERVER_SEND
+            payload.stage = WebSocketStage.SERVER_SEND
+            await payload.send_ws(ws)
 
         except ValueError:
             stop_flag = True
-            await ws.close()
+
+        except AssertionError:
+            stop_flag = True
 
         except WebSocketDisconnect:
             stop_flag = True
+
+        finally:
+            if stop_flag:
+                try:
+                    await ws.close()
+                except Exception:
+                    pass

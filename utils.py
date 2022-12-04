@@ -5,7 +5,7 @@ import json
 import pickle
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional, Self, Type, cast
+from typing import Any, Dict, Optional, Self, Type, cast, overload
 
 import dictdiffer  # type: ignore
 from fastapi import WebSocket
@@ -26,19 +26,19 @@ class PropertyCache(Dict[int, dict]):
     def get_raw(self, ent: ControlMixin) -> Dict[str, Any]:
         return ent.ctrl_list_property()
 
-    def get_entity_property(self, ent: ControlMixin) -> str:
+    def get_entity_property(self, ent: ControlMixin) -> dict:
         rtn = self.get_raw(ent)
         self[ent.uuid] = rtn
-        return json.dumps(rtn)
+        return rtn
 
-    def get_diff_property(self, ent: ControlMixin) -> str:
+    def get_diff_property(self, ent: ControlMixin) -> dict:
         ent_id: int = ent.uuid
         raw: dict = self.get_raw(ent)
         if ent_id not in self:
             self[ent_id] = {}
         diff: list = list(dictdiffer.diff(self[ent.uuid], raw))
         self[ent.uuid] = raw
-        return json.dumps({"diff": diff})
+        return {"diff": diff}
 
 
 class EncodeMode(Enum):
@@ -55,6 +55,7 @@ class Payload:
     Receive data container.
 
     # TODO: Use pydantic.BaseModel to do regulation
+    # TODO: Test needed
     """
 
     default_encode: EncodeMode = EncodeMode.JSON
@@ -68,9 +69,11 @@ class Payload:
             return base64.b64encode(pickle.dumps(asdict(self)))
         elif encode is EncodeMode.JSON:
             return json.dumps(asdict(self)).encode("utf8")
+        else:
+            raise NotImplementedError("Unsupported encode.")
 
     @property
-    def length(self):
+    def length(self) -> int:
         return len(self.as_bytes)
 
     @staticmethod
@@ -162,12 +165,55 @@ class WebSocketPayload(Payload):
     command: WSCommand = WSCommand.PING
     detail: Dict[str, Any] = {}
 
-    async def send(self, ws: WebSocket) -> None:
-        await ws.send_bytes(self.as_bytes)
-        return
-
     @staticmethod
     async def from_read_ws(ws: WebSocket) -> WebSocketPayload:
         return WebSocketPayload.from_bytes(
             await ws.receive_bytes(), mode=EncodeMode.JSON
         )
+
+    def ping(self) -> WebSocketPayload:
+        self.command = WSCommand.PING
+        self.detail = {}
+        return self
+
+    def close(self, reason: str = "") -> WebSocketPayload:
+        self.command = WSCommand.CLOSE
+        self.detail = {
+            "reason": reason,
+        }
+        return self
+
+    def all(self, detail: dict) -> WebSocketPayload:
+        self.command = WSCommand.ALL
+        self.detail = detail
+        return self
+
+    def diff(self, detail: dict) -> WebSocketPayload:
+        self.command = WSCommand.DIFF
+        self.detail = detail
+        return self
+
+    @overload
+    def cmd(self, *, func_name: str, kw_dict: dict) -> WebSocketPayload:
+        """For client to order the command."""
+        ...
+
+    @overload
+    def cmd(self, *, detail: dict) -> WebSocketPayload:
+        """For server to send the result"""
+        ...
+
+    def cmd(self, **kwargs) -> WebSocketPayload:
+        self.command = WSCommand.CMD
+        match kwargs.keys():
+            case ["detail"]:
+                self.detail = kwargs["detail"]
+            case ["func_name", "kw_dict"]:
+                self.detail = {
+                    "func_name": kwargs["func_name"],
+                    "kw_dict": kwargs["kw_dict"],
+                }
+        return self
+
+    async def send_ws(self, ws: WebSocket) -> None:
+        await ws.send_bytes(self.as_bytes)
