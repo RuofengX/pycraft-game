@@ -4,7 +4,7 @@ from aiounittest import AsyncTestCase
 from fastapi.encoders import jsonable_encoder
 from objprint import op  # type: ignore
 from objprint import op as print
-from websockets import connect
+from websockets.client import connect
 
 from pyworld.entity import Entity
 from server import ServerRtn

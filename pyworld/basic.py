@@ -9,9 +9,9 @@ import numpy as np
 
 
 @final
-class Vector():
+class Vector:
 
-    __slots__ = ['x', 'y', 'z', 'raw_array']  # FIXME slots cannot be pickled
+    __slots__ = ["x", "y", "z", "raw_array"]  # FIXME slots cannot be pickled
 
     @classmethod
     def zero(cls) -> Vector:
@@ -22,7 +22,9 @@ class Vector():
     def random(cls, limit: Optional[int] = None) -> Vector:
         """return a random vector instance which x,y,z is in range of limit"""
         if limit:
-            return Vector(*(random.randint(-limit, limit) for i in range(3)))
+            return Vector(
+                *(random.randint(-limit, limit) for i in range(3))
+            )
         else:
             return Vector(*(random.random() * 100 for i in range(3)))
 
@@ -35,9 +37,9 @@ class Vector():
 
     @staticmethod
     def dotproduct(vec1: Vector, vec2: Vector) -> float:
-        return np.vdot(vec1.raw_array, vec2.raw_array)
+        return np.vdot(vec1.raw_array, vec2.raw_array)  # type: ignore
 
-    def __init__(self, x: float, y: float, z: float, update_array=True):
+    def __init__(self, x: float, y: float, z: float, *, update_array=True):
         """Use x, y, z to create a 3-D vector.
         Update inner property raw_array if update_array is True
         Otherwise you should set the raw_array property afterwards."""
@@ -50,11 +52,13 @@ class Vector():
     def _update_array(self):
         """Manually update inner array.
         Row vector is used in pyworld."""
-        self.raw_array = np.array([
-            [self.x],
-            [self.y],
-            [self.z],
-        ])
+        self.raw_array = np.array(
+            [
+                [self.x],
+                [self.y],
+                [self.z],
+            ]
+        )
 
     def length(self) -> float:
         return float(np.linalg.norm(self.raw_array))
@@ -69,17 +73,18 @@ class Vector():
         unit_array = raw / np.full_like(raw, self.length())
         return Vector.from_ndarray(unit_array)
 
-    def __array__(self) -> np.ndarray:
-        return self.raw_array
+    # FIXME: TYPEERROR
+    def __array_interface__(self) -> dict:
+        return self.raw_array.__array_interface__
 
     def __add__(self, other) -> Vector:
         if not isinstance(other, Vector):
-            raise TypeError(f'Unsupport type {other.__class__}')
+            raise TypeError(f"Unsupport type {other.__class__}")
         return Vector.from_ndarray(self.raw_array + other.raw_array)
 
     def __sub__(self, other) -> Vector:
         if not isinstance(other, Vector):
-            raise TypeError(f'Unsupport type {other.__class__}')
+            raise TypeError(f"Unsupport type {other.__class__}")
         return Vector.from_ndarray(self.raw_array - other.raw_array)
 
     def __mul__(self, num: float):
@@ -102,15 +107,15 @@ class Vector():
 
     def __getstate__(self):
         return {
-            'x': self.x,
-            'y': self.y,
-            'z': self.z,
+            "x": self.x,
+            "y": self.y,
+            "z": self.z,
         }
 
     def __setstate__(self, state):
-        self.x = state['x']
-        self.y = state['y']
-        self.z = state['z']
+        self.x = state["x"]
+        self.y = state["y"]
+        self.z = state["z"]
         self._update_array()
 
     @property
@@ -118,7 +123,7 @@ class Vector():
         return self.__getstate__()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     v = Vector(1, 0, 1)
     print(v.length())
     print(v.raw_array / v.length())

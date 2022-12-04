@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pickle
 import random
+from typing import Any, Dict
 from warnings import warn
 
 from pyworld.basic import Vector
@@ -10,13 +11,13 @@ from pyworld.world import Continuum, World
 
 
 class Core:
-    def __init__(self, save_file_path: str | None = None):
+    def __init__(self, save_file_path: str | None = None) -> None:
 
         world = None
-        if save_file_path:
+        if save_file_path is not None:
             try:
                 with open(save_file_path, mode='rb') as f:
-                    world = pickle.load(f)
+                    world: Any = pickle.load(f)
                     assert isinstance(world, World)
             except AssertionError:
                 warn('Pickled object is not World type.')
@@ -28,11 +29,11 @@ class Core:
                     f.close()
         else:
             # Set new file path.
-            rnd_id = random.randint(100000, 999999)
+            rnd_id: int = random.randint(100000, 999999)
             save_file_path = "./save-{0}.bin".format(rnd_id)
             print("Auto generate new save file: {}".format(save_file_path))
 
-        self.ct = Continuum(world=world)
+        self.ct: Continuum = Continuum(world=world)
         self.save_file_path: str = save_file_path
 
     def start(self) -> None:
@@ -57,7 +58,7 @@ class Core:
         Return the player object.
         """
 
-        p = self.ct.world.world_new_entity(
+        p: Player = self.ct.world.world_new_entity(
             cls=Player,
             pos=Vector.random(),
             username=username,
@@ -78,7 +79,7 @@ class Core:
             )
 
     @property
-    def player_dict(self):
+    def player_dict(self) -> Dict[str, Player]:
         """Shorten the self.ct.world.player_dict."""
 
         return self.ct.world.player_dict

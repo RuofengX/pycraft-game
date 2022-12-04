@@ -19,7 +19,7 @@ class ControlMixin(Entity):
     It will expose all mixins' methods, use _ to mask inner method.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.__cache: Dict[str, dict] = {}
 
@@ -29,7 +29,7 @@ class ControlMixin(Entity):
         name as the key, __docs__ as the values.
         """
 
-        rtn = {}
+        rtn: Dict[str, str] = {}
         with self._tick_lock:
             for func_name in dir(self):
                 if func_name[0] != "_":  # Ignore attr start with _
@@ -47,11 +47,11 @@ class ControlMixin(Entity):
         name as the key, value as the values.
         """
 
-        rtn = {}
+        rtn: Dict[str, Any] = {}
         with self._tick_lock:
             for property_name in dir(self):
                 if property_name[0] != "_":  # Ignore attr start with _
-                    pty = getattr(self, property_name)
+                    pty: Any = getattr(self, property_name)
                     if not callable(pty):
                         rtn[property_name] = str(pty)
             return rtn
@@ -63,9 +63,7 @@ class ControlMixin(Entity):
         use **kwargs attachment as the arguments.
         """
 
-        rtn = ControlResult()
-
-        self.ctrl_refresh_cache()  # Refresh the cache.
+        rtn: ControlResult = ControlResult()
 
         try:
             if func_name in self.ctrl_list_method():
@@ -79,7 +77,7 @@ class ControlMixin(Entity):
 
 
 if __name__ == "__main__":
-    a = ControlMixin(eid=1)
+    a: ControlMixin = ControlMixin(eid=1)
     print(a.ctrl_list_method().keys())
 
     print("#" * 88)
@@ -88,13 +86,13 @@ if __name__ == "__main__":
     import pickle
 
     setattr(a, "test_b", pickle.dumps(a))
-    r = a.ctrl_list_property()
+    r: Dict[str, Any] = a.ctrl_list_property()
     print(r)
 
-    def test(k):
+    def test(k) -> None:
         print(k)
 
     setattr(a, "test", test)
     a.ctrl_list_method.cache_clear()
-    rtn = a.ctrl_safe_call("test")
+    rtn: ControlResult = a.ctrl_safe_call("test")
     print(rtn)

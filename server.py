@@ -1,18 +1,14 @@
 import base64
-import json
 from dataclasses import dataclass
-from typing import Any, Dict
 
-import dictdiffer
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 
 from game import Core
-from pyworld.control import ControlMixin
 from pyworld.player import Player
 from pyworld.utils import Result, RtnStatus
 from pyworld.world import Entity
-from utils import ClientCommand
+from utils import PropertyCache, WebSocketPayload, WebSocketStage
 
 
 @dataclass
@@ -143,63 +139,43 @@ async def ctrl_call(*, username: str, passwd: str, func_name: str, keywords: dic
     return rtn.to_json()
 
 
-class PropertyCache(Dict[int, dict]):
-    """
-    Temp Memorize cache,
-
-    Used to transfer diff data in websocket connection
-    """
-
-    def __init__(self):
-        super().__init__(self)
-
-    def get_raw(self, ent: ControlMixin) -> Dict[str, Any]:
-        return ent.ctrl_list_property()
-
-    def get_entity_property(self, ent: ControlMixin) -> str:
-        rtn = self.get_raw(ent)
-        self[ent.uuid] = rtn
-        return json.dumps(rtn)
-
-    def get_diff_property(self, ent: ControlMixin) -> str:
-        ent_id = ent.uuid
-        raw: dict = self.get_raw(ent)
-        if ent_id not in self:
-            self[ent_id] = {}
-        diff = list(dictdiffer.diff(self[ent.uuid], raw))
-        self[ent.uuid] = raw
-        return json.dumps({"diff": diff})
-
-
-# TODO: Test Needed
 @app.websocket(path="/ctrl/diff")
-async def ctrl_diff(
+async def ctrl_stream(
     *,
     ws: WebSocket,
     username: str,
     passwd: str,
 ) -> None:
+
+    payload: WebSocketPayload = WebSocketPayload()
+
+    # STAGE INIT
+    payload.stage = WebSocketStage.INIT
     await ws.accept()
 
-    print((username, passwd))
+    # STAGE CHECK
+    payload.stage = WebSocketStage.LOGIN
     if not core.check_login(username, passwd):
-        rtn = ServerRtn()
-        return rtn.name_not_valid()
+        payload.detail = {}
+        await payload.send(ws)
+        await ws.close()
 
     p: Player = core.player_dict[username]
-    cache = PropertyCache()
+    cache: PropertyCache = PropertyCache()
     stop_flag: bool = False
 
+    # STAGE LOOP
     while not stop_flag:
         try:
-            client_cmd = await ws.receive_text()  # receive first
-            cmd = ClientCommand(client_cmd)  # raise ValueError
-            if cmd is ClientCommand.FULL:
-                await ws.send_text(cache.get_entity_property(p))
-            elif cmd is ClientCommand.DIFF:
-                await ws.send_text(cache.get_diff_property(p))
-            elif cmd is ClientCommand.DONE:
-                stop_flag = True
+            # STAGE CLIENT_PREPARE
+            # STAGE CLIENT_SEND
+            payload.stage = WebSocketStage.CLIENT_SEND
+
+            # TODO: RECONSTRUCT
+
+            # STAGE SERVER_PREPARE
+
+            # STAGE SERVER_SEND
 
         except ValueError:
             stop_flag = True
