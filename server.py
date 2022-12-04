@@ -160,6 +160,7 @@ async def ctrl_stream(
         await payload.send(ws)
         await ws.close()
 
+
     p: Player = core.player_dict[username]
     cache: PropertyCache = PropertyCache()
     stop_flag: bool = False
@@ -170,8 +171,9 @@ async def ctrl_stream(
             # STAGE CLIENT_PREPARE
             # STAGE CLIENT_SEND
             payload.stage = WebSocketStage.CLIENT_SEND
+            client_cmd = await WebSocketPayload.from_read_ws(ws)
+            assert client_cmd.stage is WebSocketStage.CLIENT_SEND
 
-            # TODO: RECONSTRUCT
 
             # STAGE SERVER_PREPARE
 

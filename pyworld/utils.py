@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from typing import Dict
 
@@ -59,11 +59,7 @@ class Result:
         return self.to_json()
 
     def to_dict(self) -> Dict[str, str | dict]:
-        return {
-            "stage": self.stage,
-            "status": self.status.value,
-            "detail": self.detail,
-        }
+        return asdict(self)
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
