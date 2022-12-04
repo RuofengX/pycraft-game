@@ -10,9 +10,10 @@ from __future__ import annotations
 from collections import UserDict
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Any, List, Optional, final
+from typing import Any, List, Optional, final, Dict
 
 from pyworld.world import Character, World
+from pyworld.control import ControlMixin, ControlResult
 
 
 @dataclass
@@ -91,7 +92,7 @@ class ItemStack(CargoBase):
             self.data += o.data
 
 
-class CargoContainer(UserDict):
+class CargoContainer(ControlMixin, UserDict):
     """
     Use as the container to store all CargoThing
 
@@ -163,6 +164,15 @@ class CargoMixin(Character):
     def __static_init__(self):
         super().__static_init__()
         self.__cargo_lock = Lock()
+
+    def cargo_list_method(self) -> Dict[str, str]:
+        return self.cargo.ctrl_list_method()
+
+    def cargo_list_property(self) -> Dict[str, Any]:
+        return self.cargo.ctrl_list_property()
+
+    def cargo_safe_call(self, func_name: str, **kwargs) -> ControlResult:
+        return self.cargo.ctrl_safe_call(func_name, **kwargs)
 
     def cargo_has_slot(self) -> bool:
         """Return whether the cargo has empty space."""
