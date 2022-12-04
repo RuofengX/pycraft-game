@@ -1,14 +1,10 @@
-"""
-filename: message.py
-comment: Containing basic modules, like DebugMixin, MsgMixin.
-"""
 from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from threading import Lock
-from typing import List, Type, TypeGuard
+from typing import List, TypeGuard
 
 from objprint import op  # type:ignore
 
@@ -132,7 +128,7 @@ class MsgMixin(MsgInboxMixin, Character):
         return payload.msg_id
 
     @classmethod
-    def _msg_target_has_inbox(cls, target: Character) -> TypeGuard[Type[MsgInboxMixin]]:
+    def _msg_target_has_inbox(cls, target: Character) -> TypeGuard[MsgInboxMixin]:
         """Check target character has inbox"""
         return hasattr(target, "msg_inbox")
 

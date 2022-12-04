@@ -3,9 +3,9 @@ from __future__ import annotations
 import base64
 import json
 import pickle
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional, cast, Generic, TypeVar
+from typing import Any, Dict, Optional, Self, Type, cast
 
 import dictdiffer  # type: ignore
 from fastapi import WebSocket
@@ -49,11 +49,8 @@ class EncodeMode(Enum):
         return 2
 
 
-_Cls = TypeVar('_Cls')
-
-
 @dataclass(init=True, repr=False)
-class Payload(Generic[_Cls]):
+class Payload:
     """
     Receive data container.
 
@@ -84,7 +81,7 @@ class Payload(Generic[_Cls]):
         return rtn
 
     @classmethod
-    def from_bytes(cls: _Cls, b: bytes, mode: EncodeMode | str) -> _Cls:
+    def from_bytes(cls: Type[Self], b: bytes, mode: EncodeMode | str) -> Self:
         if type(mode) == EncodeMode:
             pass
         else:
@@ -93,12 +90,15 @@ class Payload(Generic[_Cls]):
             except TypeError as e:
                 raise TypeError(f"Unsupported EncodeMode str.[{str(e)}]")
 
-        if mode is EncodeMode.B64_PICKLE_BYTES:
-            rtn = pickle.loads(base64.b64decode(b))
-        elif mode is EncodeMode.JSON:
-            rtn = Payload.from_dict(json.loads(b.decode("utf8")))
+        match mode:
+            case EncodeMode.B64_PICKLE_BYTES:
+                rtn: Payload = pickle.loads(base64.b64decode(b))
+            case EncodeMode.JSON:
+                rtn: Payload = Payload.from_dict(json.loads(b.decode("utf8")))
+            case other:
+                raise NotImplementedError(f"Unsupported EncodeMode: {str(other)}")
 
-        cast(cls, rtn)  # type: ignore
+        cast(cls, rtn)
         return rtn
 
 
@@ -118,16 +118,16 @@ class WebSocketStage(Enum):
 
 class WSCommand(Enum):
     """
-    A bried protocol instruments:
+    A brief protocol instruments:
 
     STAGE
     0. Just a simple States Machine
 
     INIT
-    1. client send the GET request with creds to ws uri,
+    1. client send the GET request with credentials to ws uri,
     2. a ws created,
     LOGIN
-    2.1. server check the creds, if invalid -> (CLOSE, {})
+    2.1. server check the credentials, if invalid -> (CLOSE, {})
     LOOP
     2.2. server send (CMD, {})
     CLIENT_PREPARE
@@ -139,7 +139,7 @@ class WSCommand(Enum):
     """
 
     PING = 0x00  # Server/Client, the peer should send the PING either.
-    CLOSE = 0x01  # S: creds is invalid
+    CLOSE = 0x01  # S: credentials is invalid
     CMD = 0x02  # S: ready for CMD | C: Call function, using **detail as kwargs
     ALL = 0x03  # C: need all info about the player entity
     DIFF = 0x04  # C: need diff info about the player entity
@@ -152,20 +152,18 @@ class WebSocketPayload(Payload):
     Properties:
         stage: Record the stage for assert and debug use.
         command: the Command slot, mostly used by client, used to order the peer.
-        detail: infomation body, mostly used by server,
+        detail: information body, mostly used by server,
             used to return the info that client asked.
     """
 
-    default_encode = field(default=EncodeMode.JSON, init=False)
+    default_encode: EncodeMode = field(default=EncodeMode.JSON, init=False)
 
     stage: WebSocketStage = field(default=WebSocketStage.UNKNOWN)
     command: WSCommand = WSCommand.PING
     detail: Dict[str, Any] = {}
 
     async def send(self, ws: WebSocket) -> None:
-        await ws.send_bytes(
-            self.as_bytes
-        )
+        await ws.send_bytes(self.as_bytes)
         return
 
     @staticmethod

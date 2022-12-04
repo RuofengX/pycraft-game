@@ -7,7 +7,7 @@ from objprint import op  # type:ignore
 
 from pyworld.modules import (CargoContainer, CargoMixin, DebugMixin, ItemBase,
                              MsgMixin, Radar)
-from pyworld.world import Character, Continuum, Entity, Vector
+from pyworld.world import Character, Continuum, Vector
 
 
 class DebugEntity(DebugMixin, Character):
@@ -44,7 +44,7 @@ class MsgEntity(MsgMixin, Character):
 class TestMsgMixin(unittest.TestCase):
     def setUp(self):
         self.ct = Continuum()
-        self.ent0 = self.ct.world.world_new_entity(cls=Entity)
+        self.ent0 = self.ct.world.world_new_character(pos=Vector(0, 0, 0))
         self.msg0 = self.ct.world.world_new_entity(
             cls=MsgEntity, pos=Vector(0, 0, 0), velo=Vector(0, 0, 0)
         )
@@ -60,7 +60,7 @@ class TestMsgMixin(unittest.TestCase):
 
     def test_msg_duck_type(self):
         assert MsgMixin._msg_target_has_inbox(self.ent0) is False
-        self.ent0.msg_inbox = []
+        self.ent0.msg_inbox = []  # type: ignore
         assert MsgMixin._msg_target_has_inbox(self.ent0) is True
         assert MsgMixin._msg_target_has_inbox(self.msg0)
 
@@ -95,7 +95,7 @@ class OreItem(ItemBase):
 class TestCargo(unittest.TestCase):
     def setUp(self):
         self.ct = Continuum()
-        self.ent0 = self.ct.world.world_new_entity(cls=Entity)
+        self.ent0 = self.ct.world.world_new_character(pos=Vector(0, 0, 0))
         self.crg0 = self.ct.world.world_new_entity(
             cls=CargoEntity, pos=Vector(0, 0, 0), cargo_max_slots=10
         )
@@ -137,9 +137,9 @@ class TestCargo(unittest.TestCase):
     def test_cargo_pop(self):
         self.ct.start()
         self.crg1._cargo_add(OreItem())
-        assert hasattr(self.crg1.cargo, 'OreItem')
-        self.crg1._cargo_pop(name='OreItem')
-        assert not hasattr(self.crg1.cargo, 'OreItem')
+        assert hasattr(self.crg1.cargo, "OreItem")
+        self.crg1._cargo_pop(name="OreItem")
+        assert not hasattr(self.crg1.cargo, "OreItem")
 
 
 class TestItemEnt(CargoMixin, MsgMixin, Character):
@@ -153,9 +153,7 @@ class TestRadar(unittest.TestCase):
 
         # Add some targets
         for i in range(3):
-            self.ct.world.world_new_entity(
-                cls=Character, pos=Vector(i, 1, 0)
-            )
+            self.ct.world.world_new_entity(cls=Character, pos=Vector(i, 1, 0))
         self.ct.world.world_new_entity(
             cls=Character,
             pos=Vector(110, 0, 0),
@@ -165,7 +163,7 @@ class TestRadar(unittest.TestCase):
         self.tre = self.ct.world.world_new_entity(
             cls=TestItemEnt, cargo_max_slots=1, pos=Vector(0, 0, 0)
         )
-        assert isinstance(self.tre, Character)
+        assert isinstance(self.tre, TestItemEnt)
         radar = Radar(radius=100, interval_tick=10, auto_scan=True)
         self.tre._cargo_add(radar)
 

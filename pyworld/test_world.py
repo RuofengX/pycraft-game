@@ -23,10 +23,11 @@ class TestCharacter(unittest.TestCase):
         self.ct.start()
 
         def tick_overload(belong: Continuum):
+            ...
             # pprint(belong.entity_dict)
             op(belong)
 
-        self.test_character._tick = tick_overload
+        self.test_character._tick = tick_overload  # type: ignore
         time.sleep(0.1)
 
     def test_moving(self):
@@ -97,13 +98,13 @@ class TestWorld(unittest.TestCase):
         while 1:
             pprint(
                 {
-                    "ticks": self.ct.age,
+                    "ticks": self.ct.world.age,
                     "p1": self.test_char.position,
                     "p2": self.test_char2.position,
                     "lineal_distance": self.ct.world.world_get_lineal_distance(
                         self.test_char, self.test_char2
                     ),
-                    "natural_distance": self.ct.world.world_natural_distance(
+                    "natural_distance": self.ct.world.world_get_natural_distance(
                         self.test_char, self.test_char2
                     ),
                 }

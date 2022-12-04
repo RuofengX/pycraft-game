@@ -4,7 +4,7 @@ import time
 from functools import wraps
 from threading import Lock, Thread
 from typing import (TYPE_CHECKING, Callable, Dict, Generic, List, Literal,
-                    Optional, Type, TypeVar)
+                    Optional, Type, TypeVar, cast)
 
 from pyworld.basic import Vector
 from pyworld.entity import Entity
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from pyworld.player import Player
 
 
-def tick_isolate(func: Callable[[Character, World], None]):
+def tick_isolate(func: Callable[[C, World], None]) -> Callable[[C, World], None]:
     """
     Used to decorate tick method of character.
 
@@ -24,7 +24,7 @@ def tick_isolate(func: Callable[[Character, World], None]):
     """
 
     @wraps(func)
-    def rtn(_self, belong: World) -> None:
+    def rtn(_self: C, belong: World) -> None:
         # TODO: Use thread-pool to limit the max num of thread
         _t = Thread(target=func, args=(_self, belong))
         belong._isolated_list.append(_t)
@@ -127,8 +127,9 @@ class World(Generic[C], Entity):
 
         with self.__entity_dict_lock:
             eid = self.world_entity_plus()
-            new_e = cls(eid=eid, pos=pos, **kwargs)
+            new_e: cls = cls(eid=eid, pos=pos, **kwargs)
             self.entity_dict[eid] = new_e
+            cast(cls, new_e)
             return new_e
 
     def world_del_entity(self, eid: int) -> None:
