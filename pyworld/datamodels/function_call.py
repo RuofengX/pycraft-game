@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+from enum import Enum
+from typing import Dict, Any, Optional
+
+from pydantic import BaseModel
+
+
+Detail = Dict[str, Any] | str
+
+
+class ExceptionModel(BaseModel):
+    exception_name: str = ""
+    exception_detail: Detail | str = ""
+
+    @staticmethod
+    def from_exception(e: Exception | None) -> Optional[ExceptionModel]:
+        if e is None:
+            return None
+        return ExceptionModel(
+            exception_name=e.__class__.__name__,
+            exception_detail=str(e),
+        )
+
+
+class RequestModel(BaseModel):
+    func_name: str
+    kwargs: Dict[str, Any]
+
+
+class RtnStatus(Enum):
+    NOT_SET = "<Not_set>"
+    FAIL = "Fail"
+    WARNING = "Warning"
+    SUCCESS = "Success"
+
+
+class ResultModel(BaseModel):
+    """
+    Easy way to create function safe call result return.
+
+    stage: the name or info of the calling method. Readable.
+           Will auto generate by class name if not set.
+    status: the result status, success or fail. Only key to do match.
+    detail: the return or error message, should be readable dict | str. Readable.
+
+    """
+
+    stage: str = 'UNKNOWN'
+    status: RtnStatus = RtnStatus.NOT_SET
+    detail: Detail = ""
+    exception: Optional[ExceptionModel] = None
+
+    def fail(self, detail: Detail, e: Optional[Exception] = None) -> str:
+        """Create a fatal respond with detail=message."""
+        self.status = RtnStatus.FAIL
+        self.detail = detail
+        self.exception = ExceptionModel.from_exception(e)
+        return self.to_json()
+
+    def warning(self, message: Detail, e: Optional[Exception] = None) -> str:
+        """Create a warning respond with detail=message."""
+        self.status = RtnStatus.WARNING
+        self.detail = message
+        self.exception = ExceptionModel.from_exception(e)
+        return self.to_json()
+
+    def success(self, message: str | Detail) -> str:
+        """Create a success respond with detail=message."""
+        self.status = RtnStatus.SUCCESS
+        self.detail = message
+        return self.to_json()
+
+    def to_dict(self) -> Dict[str, str | Detail]:
+        return self.dict()
+
+    def to_json(self) -> str:
+        return self.json()

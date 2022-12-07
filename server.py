@@ -1,25 +1,25 @@
+import asyncio as aio
 import base64
-from dataclasses import dataclass
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 
 from game import Core
 from pyworld.player import Player
-from pyworld.utils import Result, RtnStatus
-from pyworld.world import Entity
-from utils import PropertyCache, WSCommand, WSPayload, WSStage
+from pyworld.datamodels.function_call import RequestModel, ResultModel, RtnStatus
+from pyworld.entity import Entity
+from pyworld.datamodels.websockets import WSCommand, WSPayload, WSStage
+from pyworld.datamodels.property_cache import PropertyCache
 
 
-@dataclass
-class ServerRtn(Result):
+class ServerRtn(ResultModel):
     """
     Easy way to create json response.
 
     Extend some useful fail states.
     """
 
-    stage = "Server"
+    stage: str = "Server"
 
     def entity(self, entity: Entity) -> str:
         """
@@ -122,8 +122,8 @@ async def ctrl_get_properties(username: str, passwd: str):
     return rtn.success(p.ctrl_list_property())
 
 
-@app.put(path="/ctrl/call")
-async def ctrl_call(*, username: str, passwd: str, func_name: str, keywords: dict):
+@app.post(path="/ctrl/call")
+async def ctrl_call(*, username: str, passwd: str, body: RequestModel):
     rtn = ServerRtn()
 
     if not core.check_login(username, passwd):
@@ -134,12 +134,12 @@ async def ctrl_call(*, username: str, passwd: str, func_name: str, keywords: dic
 
     p: Player = core.player_dict[username]
 
-    result: Result = p.ctrl_safe_call(func_name, **keywords)
+    result: ResultModel = p.ctrl_safe_call(body)
     rtn.success(result.to_dict())
     return rtn.to_json()
 
 
-@app.websocket(path="/ctrl/diff")
+@app.websocket(path="/ctrl/stream")
 async def ctrl_stream(
     *,
     ws: WebSocket,
@@ -150,13 +150,13 @@ async def ctrl_stream(
     payload: WSPayload = WSPayload()
 
     # STAGE INIT
-    payload.stage = WSStage.INIT
+    stage = WSStage.INIT
     await ws.accept()
 
     # STAGE CHECK
-    payload.stage = WSStage.LOGIN
+    stage = WSStage.LOGIN
     if not core.check_login(username, passwd):
-        payload.detail = {}
+        payload.close(stage, reason="credential wrong")
         await payload.send_ws(ws)
         await ws.close()
 
@@ -171,48 +171,56 @@ async def ctrl_stream(
             pass
 
             # STAGE CLIENT_SEND
-            payload.stage = WSStage.CLIENT_SEND
-            client_req = await WSPayload.from_read_ws(ws)
+            stage = WSStage.CLIENT_SEND
+            client_req: WSPayload = await WSPayload.from_read_ws(ws)
             assert client_req.stage is WSStage.CLIENT_SEND
             client_cmd = client_req.command
 
             # STAGE SERVER_PREPARE
-            payload.stage = WSStage.SERVER_PREPARE
+            stage = WSStage.SERVER_PREPARE
 
             match client_cmd:
                 case WSCommand.PING:
-                    payload.ping()
+                    payload.ping(stage)
                 case WSCommand.CLOSE:
                     stop_flag = True
-                    payload.close(reason="Client send the CLOSE command.")
+                    payload.close(stage, reason="Client send the CLOSE command.")
                 case WSCommand.ALL:
-                    payload.all(detail=cache.get_entity_property(ent=p))
+                    payload.all(stage, detail=cache.get_entity_property(ent=p))
                 case WSCommand.DIFF:
-                    payload.diff(detail=cache.get_diff_property(ent=p))
+                    payload.diff(stage, detail=cache.get_diff_property(ent=p))
                 case WSCommand.CMD:
+                    client_patch = RequestModel(**client_req.detail)
                     payload.cmd(
-                        detail=p.ctrl_safe_call(
-                            func_name=client_req.detail["func_name"],
-                            kwargs=client_req.detail["kwargs"],
-                        ).to_dict()
+                        server_resp=p.ctrl_safe_call(
+                            data=client_patch
+                        )
                     )
 
             # STAGE SERVER_SEND
             payload.stage = WSStage.SERVER_SEND
             await payload.send_ws(ws)
 
-        except ValueError:
+        except ValueError as e:
             stop_flag = True
+            payload.close(stage, 'ValueError', e)
 
-        except AssertionError:
+        except AssertionError as e:
             stop_flag = True
+            payload.close(stage, 'AssertionError', e)
+            await payload.send_ws(ws)
 
         except WebSocketDisconnect:
             stop_flag = True
+            payload.close(stage, 'WebSocketDisconnect')
+
+        except Exception as e:
+            stop_flag = True
+            payload.close(stage, 'UnexceptedError', e)
 
         finally:
             if stop_flag:
                 try:
-                    await ws.close()
+                    await aio.wait([ws.close()], timeout=5.0)
                 except Exception:
                     pass

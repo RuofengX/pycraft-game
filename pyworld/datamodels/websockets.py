@@ -3,42 +3,13 @@ from __future__ import annotations
 import base64
 import json
 import pickle
-from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional, Self, Type, cast, overload
-
-import dictdiffer  # type: ignore
+from typing import Any, Dict, Optional, overload, List, Self
 from fastapi import WebSocket
+from pydantic import BaseModel
 
-from pyworld.control import ControlMixin
-
-
-class PropertyCache(Dict[int, dict]):
-    """
-    Temp Memorize cache,
-
-    Used to transfer diff data in websocket connection
-    """
-
-    def __init__(self) -> None:
-        super().__init__(self)
-
-    def get_raw(self, ent: ControlMixin) -> Dict[str, Any]:
-        return ent.ctrl_list_property()
-
-    def get_entity_property(self, ent: ControlMixin) -> dict:
-        rtn = self.get_raw(ent)
-        self[ent.uuid] = rtn
-        return rtn
-
-    def get_diff_property(self, ent: ControlMixin) -> dict:
-        ent_id: int = ent.uuid
-        raw: dict = self.get_raw(ent)
-        if ent_id not in self:
-            self[ent_id] = {}
-        diff: list = list(dictdiffer.diff(self[ent.uuid], raw))
-        self[ent.uuid] = raw
-        return {"diff": diff}
+from pyworld.datamodels.function_call import RequestModel, ExceptionModel
+from pyworld.control import ControlResultModel
 
 
 class EncodeMode(Enum):
@@ -49,12 +20,10 @@ class EncodeMode(Enum):
         return 2
 
 
-@dataclass(init=True, repr=False)
-class Payload:
+class Payload(BaseModel):
     """
     Receive data container.
 
-    # TODO: Use pydantic.BaseModel to do regulation
     # TODO: Test needed
     """
 
@@ -66,9 +35,9 @@ class Payload:
             encode = self.default_encode
 
         if encode is EncodeMode.B64_PICKLE_BYTES:
-            return base64.b64encode(pickle.dumps(asdict(self)))
+            return base64.b64encode(pickle.dumps(self.dict()))
         elif encode is EncodeMode.JSON:
-            return json.dumps(asdict(self)).encode("utf8")
+            return str(self.dict()).encode("utf8")
         else:
             raise NotImplementedError("Unsupported encode.")
 
@@ -77,14 +46,17 @@ class Payload:
         return len(self.as_bytes)
 
     @staticmethod
-    def from_dict(d: dict) -> Payload:
+    def from_dict(d: Dict[str, Any]) -> Payload:
         rtn: Payload = Payload()
         for key in d:
             setattr(rtn, key, d[key])
         return rtn
 
     @classmethod
-    def from_bytes(cls: Type[Self], b: bytes, mode: EncodeMode | str) -> Self:
+    def from_bytes(
+        cls, b: bytes, mode: EncodeMode | str
+    ) -> Self:  # type: ignore[valid-type]
+        # TODO: mypy do not recognize Self annotation
         if type(mode) == EncodeMode:
             pass
         else:
@@ -93,15 +65,15 @@ class Payload:
             except TypeError as e:
                 raise TypeError(f"Unsupported EncodeMode str.[{str(e)}]")
 
+        rtn: Self  # type: ignore[valid-type]
         match mode:
             case EncodeMode.B64_PICKLE_BYTES:
-                rtn: Payload = pickle.loads(base64.b64decode(b))
+                rtn = pickle.loads(base64.b64decode(b))
             case EncodeMode.JSON:
-                rtn: Payload = Payload.from_dict(json.loads(b.decode("utf8")))
+                rtn = Payload.from_dict(json.loads(b.decode("utf8")))
             case other:
                 raise NotImplementedError(f"Unsupported EncodeMode: {str(other)}")
 
-        cast(cls, rtn)
         return rtn
 
 
@@ -148,7 +120,6 @@ class WSCommand(Enum):
     DIFF = 0x04  # C: need diff info about the player entity
 
 
-@dataclass
 class WSPayload(Payload):
     """
     Override: WebSocket use JSON to exchange data by force.
@@ -159,58 +130,67 @@ class WSPayload(Payload):
             used to return the info that client asked.
     """
 
-    default_encode: EncodeMode = field(default=EncodeMode.JSON, init=False)
-
-    stage: WSStage = field(default=WSStage.UNKNOWN)
+    stage: WSStage = WSStage.UNKNOWN
     command: WSCommand = WSCommand.PING
     detail: Dict[str, Any] = {}
+    exception: Optional[ExceptionModel] = None
+
+    default_encode: EncodeMode = EncodeMode.JSON
 
     @staticmethod
     async def from_read_ws(ws: WebSocket) -> WSPayload:
         return WSPayload.from_bytes(await ws.receive_bytes(), mode=EncodeMode.JSON)
 
-    def ping(self) -> WSPayload:
+    def ping(self, stage: WSStage) -> WSPayload:
+        self.stage = stage
         self.command = WSCommand.PING
         self.detail = {}
         return self
 
-    def close(self, reason: str = "") -> WSPayload:
+    def close(
+        self, stage: WSStage, reason: str, exception: Optional[Exception] = None
+    ) -> WSPayload:
+        self.stage = stage
         self.command = WSCommand.CLOSE
         self.detail = {
             "reason": reason,
         }
+        if exception is not None:
+            self.exception = ExceptionModel.from_exception(exception)
         return self
 
-    def all(self, detail: dict) -> WSPayload:
+    def all(self, stage: WSStage, detail: Dict[str, Any]) -> WSPayload:
+        self.stage = stage
         self.command = WSCommand.ALL
         self.detail = detail
         return self
 
-    def diff(self, detail: dict) -> WSPayload:
+    def diff(self, stage: WSStage, detail: Dict[str, List[Any]]) -> WSPayload:
+        self.stage = stage
         self.command = WSCommand.DIFF
         self.detail = detail
         return self
 
     @overload
-    def cmd(self, *, func_name: str, kw_dict: dict) -> WSPayload:
-        """For client to order the command."""
+    def cmd(self, *, server_resp: ControlResultModel) -> WSPayload:
+        """For server to send the result"""
         ...
 
     @overload
-    def cmd(self, *, detail: dict) -> WSPayload:
-        """For server to send the result"""
+    def cmd(self, *, client_req: RequestModel) -> WSPayload:
+        """For client to order the command."""
         ...
 
     def cmd(self, **kwargs) -> WSPayload:
         self.command = WSCommand.CMD
         match kwargs.keys():
-            case ["detail"]:
+            case ["server_resp"]:
+                self.stage = WSStage.SERVER_PREPARE
                 self.detail = kwargs["detail"]
-            case ["func_name", "kw_dict"]:
-                self.detail = {
-                    "func_name": kwargs["func_name"],
-                    "kw_dict": kwargs["kw_dict"],
-                }
+            case ["client_req"]:
+                self.stage = WSStage.CLIENT_PREPARE
+                patch: RequestModel = kwargs["req_patch"]
+                self.detail = patch.dict()
         return self
 
     async def send_ws(self, ws: WebSocket) -> None:

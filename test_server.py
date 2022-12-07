@@ -54,6 +54,12 @@ class TestWebSocket(AsyncTestCase):
             result = json.loads(recv)
             print(result)
 
+    async def test_call(self):
+
+
+
+
+
 
 if __name__ == "__main__":
     main()
