@@ -10,98 +10,117 @@ from __future__ import annotations
 from collections import UserDict
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Any, List, Optional, final, Dict
+from typing import (
+    Any,
+    List,
+    Optional,
+    final,
+    Dict,
+    ClassVar,
+    TypeVar,
+    Type,
+    Generic,
+    Self,
+)
 
 from pyworld.world import Character, World
-from pyworld.control import ControlMixin, ControlResult
+from pyworld.control import ControlMixin, ControlResultModel
+from pyworld.datamodels.function_call import RequestModel
+
+
+class CargoThing:
+    """Things that could get stored in cargo"""
+
+    pass
+
+
+class ItemMeta(type):
+    """All items are singleton, stored in Item.all_items"""
+
+    def __new__(cls, name, bases, attrs):
+
+        if "mass" not in attrs:
+            raise NotImplementedError("Item class must have mass")
+
+        return type.__new__(cls, name, bases, attrs)
 
 
 @dataclass
-class CargoBase:
-    """
-    Generate instance that could be added into CargoMixin.
+class Item(metaclass=ItemMeta):
+    all_items: ClassVar[Dict[str, Any]] = field(default_factory=dict)
+    # all_items storage all singleton of item
 
-    Properties:
-        name: Name of the thing.
+    mass: int = field(init=False)
+    # item must have mass interface
 
-    Methods:
-        tick
-    """
+    def __new__(cls: Type[Items]) -> Items:
+        """All item's subclass is singleton."""
 
-    def __post_init__(self):
-        self.name = self.__class__.__name__
+        name = cls.__class__.__name__
+        if name not in Item.all_items:
+            Item.all_items[name] = super(Item, cls).__new__(cls)
+        return Item.all_items[name]
 
-    def _tick(self, o: CargoMixin, w: World):
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__
+
+    def _tick(self, o: CargoMixin[Items], w: World[Character]):
+        """Item could has _tick method"""
         pass
 
 
-@dataclass
-class ItemBase(CargoBase):
-    """
-    Extend CargoThing with to_stack() function and mass property.
-    """
-
-    mass: float = field(default=0, init=False)
-    num: int = field(default=1, init=False)
-
-    def to_stack(self):
-        return ItemStack(data=[self])
+Items = TypeVar("Items", bound=Item)  # All the subclass of Item
 
 
 @final
 @dataclass
-class ItemStack(CargoBase):
+class ItemStack(Generic[Items]):
     """
     Final class, item stack.
-    ItemStack it self will not ensure the items in the stack
-    is the same item.
+    It is a stack of one same item.
 
     Properties:
-        data: list of container
         name: return first item's name in data list
         mass: return summary mass of all item in data list
 
     """
-    data: List[ItemBase]
 
-    def __post_init__(self):
-        """Override the name getter."""
-        self.name = self.data[0].name
+    item: Items
+    num: int = 1
 
     @property
     def mass(self):
-        return sum(
-            (i.mass for i in self.data)
-        )
+        return self.item.mass * self.num
 
-    def __add__(self, o: ItemStack) -> ItemStack:
-        if o.name != self.name:
-            raise TypeError(
-                f'Cannot add two different[{self.name}, {o.name}] CargoThing.'
-            )
-        return ItemStack(
-            self.data + o.data
-        )
+    @property
+    def name(self):  # actually same as the item
+        return self.item.name
 
-    def __radd__(self, o: ItemStack):
-        if o.name != self.name:
+    def _gather(self, o: ItemStack[Items]) -> Self:  # type: ignore[valid-type]
+        if o.item is not self.item:
             raise TypeError(
-                f'Cannot add two different[{self.name}, {o.name}] CargoThing.'
+                f"Cannot add two different[{self.item}, {o.item}] CargoThing."
             )
+        self.num += o.num
+        o.num = 0
+        return self
+
+    def _split(self, num: int) -> ItemStack[Items]:
+        if num > self.num:
+            return ItemStack(item=self.item, num=0)
         else:
-            self.data += o.data
+            self.num -= num
+            return ItemStack(item=self.item, num=num)
 
 
-class CargoContainer(ControlMixin, UserDict):
+class Cargo(ControlMixin, UserDict[str, ItemStack[Items]]):
     """
     Use as the container to store all CargoThing
-
-    Type: Dict[CargoThing]
 
     Properties:
         data: dict for inner data.
         mass: total mass include all thing in self
-        count: summary num of things in self
 
     Methods:
         append: add new thing into cargo
@@ -113,42 +132,39 @@ class CargoContainer(ControlMixin, UserDict):
 
     """
 
-    def __init__(self, *items: CargoBase):
+    def __init__(self, *itemstacks: ItemStack[Items]):
         super().__init__()
-        for item in items:
-            self.append(item)
-
-    def append(self, o: CargoBase):
-        name = o.name
-        if name in self:
-            self.data[name] += o
-        else:
-            self.data[name] = o
-            setattr(self, name, self.data[name])
-
-    def pop(self, key: str, default: Optional[Any] = None):
-        super().pop(key, default)
-        delattr(self, key)
+        for i in itemstacks:
+            self._append(i)
 
     @property
     def mass(self):
-        return sum(
-            (
-                stack.mass for stack in self.data.values()
-            )
-        )
+        return sum((stack.mass for stack in self.data.values()))
 
     @property
     def count(self) -> int:
-        return sum(
-            (i.num for i in self)
-        )
+        return sum((i.num for i in self))
+
+    def _append(self, o: ItemStack[Items]) -> None:
+        # Cargo already has the same-named ItemStack
+        for name in self.data:
+            if name == o.name:
+                self.data[name]._gather(o)
+                return
+
+        # Cargo not yet has the same-named ItemStack
+        self.data[name] = o
+        return
+
+    def _pop(self, key: str) -> Optional[ItemStack[Items]]:
+        return self.data.pop(key, None)
 
     def __iter__(self):
-        return (_ for _ in self.data.values())
+        return self.data
 
 
-class CargoMixin(Character):
+# FIXME: STOP AT HERE, CHECK BELOW
+class CargoMixin(Character, Generic[Items]):
     """Cargo"""
 
     def __init__(self, cargo_max_slots: int = 0, **kwargs) -> None:
@@ -158,7 +174,7 @@ class CargoMixin(Character):
         If a sub-zero cargo_max_slots is give, cargo is infinite.
         """
         super().__init__(**kwargs)
-        self.cargo = CargoContainer()
+        self.cargo: Cargo[Items] = Cargo()
         self.cargo_max_slots = cargo_max_slots
 
     def __static_init__(self):
@@ -171,8 +187,8 @@ class CargoMixin(Character):
     def cargo_list_property(self) -> Dict[str, Any]:
         return self.cargo.ctrl_list_property()
 
-    def cargo_safe_call(self, func_name: str, **kwargs) -> ControlResult:
-        return self.cargo.ctrl_safe_call(func_name, **kwargs)
+    def cargo_safe_call(self, data: RequestModel) -> ControlResultModel:
+        return self.cargo.ctrl_safe_call(data)
 
     def cargo_has_slot(self) -> bool:
         """Return whether the cargo has empty space."""
@@ -184,7 +200,7 @@ class CargoMixin(Character):
             else:
                 return False
 
-    def _cargo_add(self, cb: CargoBase) -> bool:
+    def _cargo_add(self, itemstack: ItemStack[Items]) -> bool:
         """
         Use this method to add item stack onto one's cargo.
         Once the itemstack is added to the entity instance,
@@ -195,12 +211,12 @@ class CargoMixin(Character):
 
         with self.__cargo_lock:
             if self.cargo_has_slot():
-                self.cargo.append(cb)
+                self.cargo._append(itemstack)
                 return True
             else:
                 return False
 
-    def _cargo_pop(self, name: str) -> Optional[CargoBase]:
+    def _cargo_pop(self, name: str) -> Optional[ItemStack[Items]]:
         """
         Pop out the index of cargo.
         Also delete the cargo_<itemstack> property of the itemstack
@@ -214,16 +230,17 @@ class CargoMixin(Character):
             stack = self.cargo.pop(name)
             return stack
 
-    def _cargo_tick(self, belong: World):
+    def _cargo_tick(self, belong: World[Character]):
         """Tick every itemstack and item."""
         with self.__cargo_lock:
             for c_thing in self.cargo:
                 c_thing._tick(o=self, w=belong)
 
 
-class Radar(ItemBase):
+class Radar(Item):
     def __init__(
         self,
+        *,
         radius: int = 0,
         interval_tick: int = 100,
         auto_scan: bool = True,
@@ -248,7 +265,7 @@ class Radar(ItemBase):
         else:
             self.auto_scan = target
 
-    def _tick(self, o: CargoMixin, w: World):
+    def _tick(self, o: CargoMixin[Items], w: World[Character]):
         if self.auto_scan:
             if o.age % self.interval_tick == 0:  # use the interval
                 self.characters_list = w.world_get_nearby_character(
