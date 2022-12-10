@@ -39,7 +39,7 @@ class ItemMeta(type):
 
     def __new__(cls, name, bases, attrs):
 
-        if "mass" not in attrs:
+        if attrs["mass"] is None:
             raise NotImplementedError("Item class must have mass")
 
         return type.__new__(cls, name, bases, attrs)
@@ -50,7 +50,7 @@ class Item(metaclass=ItemMeta):
     all_items: ClassVar[Dict[str, Any]] = field(default_factory=dict)
     # all_items storage all singleton of item
 
-    mass: int = field(init=False)
+    mass: Optional[int] = field(default=None, init=False)
     # item must have mass interface
 
     def __new__(cls: Type[Items]) -> Items:
