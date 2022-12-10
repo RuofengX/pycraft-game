@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import base64
 from enum import Enum
 from typing import Dict, Any, Optional
-
 from pydantic import BaseModel
+from fastapi.encoders import jsonable_encoder
+
+from pyworld.entity import Entity
 
 
 Detail = Dict[str, Any] | str
@@ -76,3 +79,44 @@ class ResultModel(BaseModel):
 
     def to_json(self) -> str:
         return self.json()
+
+
+class ServerRtn(ResultModel):
+    """
+    Easy way to create json response.
+
+    Extend some useful fail states.
+    """
+
+    stage: str = "Server"
+
+    def entity(self, entity: Entity) -> str:
+        """
+        Create a success respond
+        with detail={'dict':..., 'obj_pickle':...}.
+        """
+
+        obj_pickle_base64 = base64.b64encode(entity.get_state_b())
+        self.status = RtnStatus.SUCCESS
+        self.detail = {
+            "dict": entity.get_state(),
+            "obj_pickle_base64": str(obj_pickle_base64),
+        }
+        return self.to_json()
+
+    def name_not_valid(self) -> str:
+        return self.fail("Username not registered yet.")
+
+    def name_already_used(self) -> str:
+        return self.fail("Username already used.")
+
+    def passwd_check_fail(self) -> str:
+        return self.fail("Password check not pass.")
+
+    def to_json(self) -> str:
+        """
+        Use fastapi jsonable encoder to
+        override the default json.dumps
+        """
+
+        return jsonable_encoder(self.to_dict())

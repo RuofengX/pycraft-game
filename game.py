@@ -2,27 +2,30 @@ from __future__ import annotations
 
 import pickle
 import random
-from typing import Any, Dict
+from typing import Dict, Optional
 from warnings import warn
 
 from pyworld.basic import Vector
 from pyworld.player import Player
-from pyworld.world import Continuum, World
+from pyworld.world import Continuum, World, Character
 
 
 class Core:
     def __init__(self, save_file_path: str | None = None) -> None:
 
-        world = None
+        world: Optional[World[Character]] = None
         if save_file_path is not None:
+            # Have path param, try to open it
             try:
                 with open(save_file_path, mode='rb') as f:
-                    world: Any = pickle.load(f)
+                    world = pickle.load(f)
                     assert isinstance(world, World)
             except AssertionError:
-                warn('Pickled object is not World type.')
+                raise TypeError('Pickled object is not valid World type.')
+
             except pickle.UnpicklingError:
-                warn('Save file is invalid.')
+                raise TypeError('Save file is invalid.')
+
             except FileNotFoundError:
                 warn('Save file path is not exist. Create one.')
                 with open(save_file_path, mode='wb') as f:
