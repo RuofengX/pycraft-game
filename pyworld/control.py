@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict
 
+from pyworld.datamodels.function_call import RequestModel, ResultModel
 from pyworld.entity import Entity
-from pyworld.datamodels.function_call import ResultModel, RequestModel
 
 
 class ControlResultModel(ResultModel):

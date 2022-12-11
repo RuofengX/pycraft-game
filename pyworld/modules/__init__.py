@@ -1,4 +1,4 @@
-from pyworld.modules.item import Cargo, CargoMixin, Item, Items, ItemStack, Radar
+from pyworld.modules.item import Cargo, CargoMixin, Item, Items, ItemStack
 from pyworld.modules.message import DebugMixin, MsgInboxMixin, MsgMixin
 from pyworld.modules.struct import BodyMixin, StructMixin, Structure
 
@@ -14,5 +14,4 @@ __all__ = [
     "ItemStack",
     "Cargo",
     "CargoMixin",
-    "Radar",
 ]

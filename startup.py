@@ -1,7 +1,7 @@
 from typing import Optional
 
-import uvicorn
 import typer
+import uvicorn
 
 from server import create_app
 

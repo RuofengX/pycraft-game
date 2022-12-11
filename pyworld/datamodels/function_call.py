@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import base64
 from enum import Enum
-from typing import Dict, Any, Optional
-from pydantic import BaseModel
+from typing import Any, Dict, Optional
+
 from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
 
 from pyworld.entity import Entity
-
 
 Detail = Dict[str, Any] | str
 

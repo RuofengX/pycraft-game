@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import time
-from functools import wraps
 from threading import Lock, Thread
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Dict,
     Generic,
     List,
@@ -20,33 +18,10 @@ from typing import (
 )
 
 from pyworld.basic import Vector
-from pyworld.entity import Entities, Entity
+from pyworld.entity import Entities, Entity, tick_isolate
 
 if TYPE_CHECKING:
     from pyworld.player import Player
-
-
-def tick_isolate(
-    func: Callable[[Entities, World], None]
-) -> Callable[[Entities, World], None]:
-    """
-    Used to decorate tick method of character.
-
-    Unblocking run in another thread
-    Record the reference of thread in world._isolated_list
-
-    Non-block run the decorate function(_tick)
-    """
-
-    @wraps(func)
-    def rtn(_self: Entities, belong: World) -> None:
-        # TODO: Use thread-pool to limit the max num of thread
-        _t = Thread(target=func, args=(_self, belong))
-        belong._isolated_list.append(_t)
-        _t.start()
-        return None
-
-    return rtn
 
 
 @runtime_checkable

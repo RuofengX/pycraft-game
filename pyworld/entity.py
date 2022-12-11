@@ -2,8 +2,18 @@ from __future__ import annotations
 
 import pickle
 import uuid
-from threading import Lock
-from typing import TYPE_CHECKING, List, TypeVar
+from functools import wraps
+from threading import Lock, Thread
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    TypeAlias,
+    TypeVar,
+)
 
 from objprint import op
 
@@ -30,6 +40,7 @@ class Entity:
         self.age = 0
         self.uuid: int = uuid.uuid4().int
         self.report_flag = False
+
         if not self.__static_called_check:
             raise SyntaxError("Some mixins' __static_init__ methods not call super()!")
 
@@ -41,7 +52,7 @@ class Entity:
 
         Very useful for those property that cannot be pickled."""
         self._tick_lock = Lock()
-        self.__static_called_check = True
+        self.__static_called_check: Literal[True] = True
 
     def __eq__(self, other):
         if isinstance(other, Entity):
@@ -67,7 +78,11 @@ class Entity:
                 # __dict__ only returns properties.
                 if len(func) > 5:  # not _tick itself
                     if func[-5:] == "_tick":  # named after _tick
-                        getattr(self, func)(belong)
+                        target: Callable[[Optional[World[Entity]]], None] = getattr(
+                            self, func
+                        )
+                        if callable(target):
+                            target(belong)
 
     def _report(self) -> None:
         """Report self, for logging or debugging usage."""
@@ -109,3 +124,49 @@ class Entity:
 
 if TYPE_CHECKING:
     Entities = TypeVar("Entities", bound=Entity)
+
+
+def tick_isolate(
+    func: Callable[[Entities, World], None]
+) -> Callable[[Entities, World], None]:
+    """
+    Used to decorate tick method of character.
+
+    Unblocking run in another thread
+    Record the reference of thread in world._isolated_list
+
+    Non-block run the decorate function(_tick)
+    """
+
+    @wraps(func)
+    def rtn(_self: Entities, belong: World) -> None:
+        # TODO: Use thread-pool to limit the max num of thread
+        _t = Thread(target=func, args=(_self, belong))
+        belong._isolated_list.append(_t)
+        _t.start()
+        return None
+
+    return rtn
+
+
+FutureTick: TypeAlias = Callable[[Entity, World[Entity]], None]
+
+
+class ScheduleMixin(Entity):
+    def __init__(self) -> None:
+        self.schedule_pending: List[Tuple[FutureTick, bool]] = []
+
+    def _schedule_add(self, method: FutureTick, isolate: Optional[bool] = None) -> None:
+        if isolate is None:
+            isolate = False
+
+        self.schedule_pending.append(
+            (method, isolate)
+        )
+
+    def _schedule_tick(self, world: World[Entity]) -> None:
+        for method, isolate in self.schedule_pending:
+            if not isolate:
+                method(self, world)
+            else:
+                tick_isolate(method)(self, world)

@@ -10,18 +10,7 @@ from __future__ import annotations
 from collections import UserDict
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    Self,
-    Type,
-    TypeVar,
-    final,
-)
+from typing import Any, ClassVar, Dict, Generic, Optional, Self, Type, TypeVar
 
 from pyworld.control import ControlMixin, ControlResultModel
 from pyworld.datamodels.function_call import RequestModel
@@ -30,6 +19,24 @@ from pyworld.world import Character, World
 
 @dataclass
 class Item:
+    """
+    Item Interface Usage
+
+    Item is a stateless class that only handle the _tick method and static
+    properties. If an Item must implement complicate method, use its ItemStack
+    to storage the dynamic method.
+
+    Every subclass of Item(let's call it Items) is a singleton,
+    stored in Item.all_items.
+
+    Properties:
+    - all_items: ClassVar, storage all singleton of subclass items
+    - name: the name of the item. Proxy to Self.__class__.__name__
+    - mass: Must defined in subclass, a __post_init__ function would check it.
+
+    Methods: See docs below.
+    """
+
     all_items: ClassVar[Dict[str, Any]] = field(default_factory=dict)
     # all_items storage all singleton of item
 
@@ -39,7 +46,7 @@ class Item:
     def __new__(cls: Type[Items]) -> Items:
         """All item's subclass is singleton."""
 
-        name = cls.__name__
+        name: str = cls.__name__
         if name not in Item.all_items:
             Item.all_items[name] = super(Item, cls).__new__(cls)
         return Item.all_items[name]
@@ -51,6 +58,9 @@ class Item:
     def name(self) -> str:
         return self.__class__.__name__
 
+    def to_stack(self, num: int = 1) -> ItemStack[Self]:
+        return ItemStack(item=self, num=num)
+
     def _tick(self, o: CargoMixin[Items], w: World[Character]) -> None:
         """Item could has _tick method"""
         pass
@@ -59,11 +69,9 @@ class Item:
 Items = TypeVar("Items", bound=Item)  # All the subclass of Item
 
 
-@final
 @dataclass
 class ItemStack(Generic[Items]):
     """
-    Final class, item stack.
     It is a stack of one same item.
 
     Properties:
@@ -76,17 +84,17 @@ class ItemStack(Generic[Items]):
     num: int = 1
 
     @property
-    def mass(self):
-        return self.item.mass * self.num
-
-    @property
-    def name(self):  # actually same as the item
+    def name(self) -> str:  # Return the Item type name
         return self.item.name
 
-    def _gather(self, o: ItemStack[Items]) -> Self:  # type: ignore[valid-type]
+    @property
+    def mass(self) -> int:
+        return self.num * self.item.mass
+
+    def _gather(self, o: ItemStack[Items]) -> Self:
         if o.item is not self.item:
             raise TypeError(
-                f"Cannot add two different[{self.item}, {o.item}] CargoThing."
+                f"Cannot add two different[{self.item}, {o.item}] ItemStack."
             )
         self.num += o.num
         o.num = 0
@@ -102,7 +110,11 @@ class ItemStack(Generic[Items]):
 
 class Cargo(ControlMixin, UserDict[str, ItemStack[Items]]):
     """
-    Use as the container to store all CargoThing
+    Use as the container to store all ItemStack
+
+    A cargo would process ItemStack follow these orders:
+    1. Only ItemStack could storage into cargo.
+    2. Stack same ItemStack, as more as possible.
 
     Properties:
         data: dict for inner data.
@@ -118,13 +130,13 @@ class Cargo(ControlMixin, UserDict[str, ItemStack[Items]]):
 
     """
 
-    def __init__(self, *itemstacks: ItemStack[Items]):
+    def __init__(self, *thing: ItemStack[Items]) -> None:
         super().__init__()
-        for i in itemstacks:
+        for i in thing:
             self._append(i)
 
     @property
-    def mass(self):
+    def mass(self) -> int:
         return sum((stack.mass for stack in self.data.values()))
 
     @property
@@ -132,13 +144,13 @@ class Cargo(ControlMixin, UserDict[str, ItemStack[Items]]):
         return sum((i.num for i in self.values()))
 
     def _append(self, o: ItemStack[Items]) -> None:
-        # Cargo already has the same-named ItemStack
         for name in self.data:
             if name == o.name:
+                # if: Cargo already has the same-named ItemStack
                 self.data[name]._gather(o)
                 return
 
-        # Cargo not yet has the same-named ItemStack
+        # else: Cargo not yet has the same-named ItemStack
         self.data[o.name] = o
         return
 
@@ -147,7 +159,7 @@ class Cargo(ControlMixin, UserDict[str, ItemStack[Items]]):
 
 
 class CargoMixin(Character, Generic[Items]):
-    """Cargo"""
+    """Add Cargo ability to an Character"""
 
     def __init__(self, cargo_max_slots: int = 0, **kwargs) -> None:
         """Parameter cargo_max_slots determines the max slots(ItemStack)
@@ -157,11 +169,11 @@ class CargoMixin(Character, Generic[Items]):
         """
         super().__init__(**kwargs)
         self.cargo: Cargo[Items] = Cargo()
-        self.cargo_max_slots = cargo_max_slots
+        self.cargo_max_slots: int = cargo_max_slots
 
-    def __static_init__(self):
+    def __static_init__(self) -> None:
         super().__static_init__()
-        self.__cargo_lock = Lock()
+        self.__cargo_lock: Lock = Lock()
 
     def cargo_list_method(self) -> Dict[str, str]:
         return self.cargo.ctrl_list_method()
@@ -209,7 +221,7 @@ class CargoMixin(Character, Generic[Items]):
             return None
 
         with self.__cargo_lock:
-            stack = self.cargo.pop(name)
+            stack = self.cargo._pop(name)
             return stack
 
     def _cargo_tick(self, belong: World[Character]):
@@ -217,40 +229,3 @@ class CargoMixin(Character, Generic[Items]):
         with self.__cargo_lock:
             for itemstack in self.cargo.values():
                 itemstack.item._tick(o=self, w=belong)
-
-
-class Radar(Item):
-    def __init__(
-        self,
-        *,
-        radius: int = 0,
-        interval_tick: int = 100,
-        auto_scan: bool = True,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.radius = radius
-        self.interval_tick = interval_tick
-        self.auto_scan = auto_scan
-        self.scan_result: List[Character] = []
-        self.last_update: int = -1
-
-    def set_scan_tick(self, interval: int):
-        self.interval_tick = interval
-
-    def toggle_auto_scan(self, target: Optional[bool] = None):
-        """Toggle radio auto_scan
-        If target: bool is given, set auto_scan to target status
-        """
-        if target is None:
-            self.auto_scan = not self.auto_scan
-        else:
-            self.auto_scan = target
-
-    def _tick(self, o: CargoMixin[Items], w: World[Character]):
-        if self.auto_scan:
-            if o.age % self.interval_tick == 0:  # use the interval
-                self.characters_list = w.world_get_nearby_character(
-                    char=o, radius=self.radius
-                )
-                self.last_update = w.age
