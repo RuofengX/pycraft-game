@@ -3,17 +3,32 @@ from __future__ import annotations
 import time
 from functools import wraps
 from threading import Lock, Thread
-from typing import (TYPE_CHECKING, Callable, Dict, Generic, List, Literal,
-                    Optional, Type, TypeVar, cast)
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Protocol,
+    Type,
+    TypeGuard,
+    cast,
+    runtime_checkable,
+)
 
 from pyworld.basic import Vector
-from pyworld.entity import Entity
+from pyworld.entity import Entities, Entity
 
 if TYPE_CHECKING:
     from pyworld.player import Player
 
 
-def tick_isolate(func: Callable[[C, World], None]) -> Callable[[C, World], None]:
+def tick_isolate(
+    func: Callable[[Entities, World], None]
+) -> Callable[[Entities, World], None]:
     """
     Used to decorate tick method of character.
 
@@ -24,7 +39,7 @@ def tick_isolate(func: Callable[[C, World], None]) -> Callable[[C, World], None]
     """
 
     @wraps(func)
-    def rtn(_self: C, belong: World) -> None:
+    def rtn(_self: Entities, belong: World) -> None:
         # TODO: Use thread-pool to limit the max num of thread
         _t = Thread(target=func, args=(_self, belong))
         belong._isolated_list.append(_t)
@@ -34,12 +49,23 @@ def tick_isolate(func: Callable[[C, World], None]) -> Callable[[C, World], None]
     return rtn
 
 
+@runtime_checkable
+class Characters(Protocol):
+    pos: Vector
+    velocity: Vector
+    acceleration: Vector
+
+
 class Character(Entity):
     """Stand for every character, belongs to a world
 
     Character has position, velocity and acceleration.
     All the entity in the world is instance of character.
     """
+
+    @staticmethod
+    def check(ent: Any) -> TypeGuard[Character]:
+        return isinstance(ent, Characters)
 
     def __init__(
         self, *, eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
@@ -59,7 +85,7 @@ class Character(Entity):
         super()._tick(belong=belong)
 
     @tick_isolate
-    def _position_tick(self, belong: World):
+    def _position_tick(self, belong: World) -> None:
         # Acceleration will set to 0 after a accelerate
         # if you want to continue accelerate a entity,
         # KEEP A FORCE ON IT.
@@ -72,10 +98,7 @@ class Character(Entity):
             self.position += self.velocity
 
 
-C = TypeVar("C", bound=Character)
-
-
-class World(Generic[C], Entity):
+class World(Entity, Generic[Entities]):
     """
     The container of a set of entity.
 
@@ -85,7 +108,7 @@ class World(Generic[C], Entity):
     def __init__(self) -> None:
         super().__init__(eid=0)
         self.entity_count = 0  # entity in total when the world created
-        self.entity_dict: Dict[int, Character] = {}
+        self.entity_dict: Dict[int, Entities] = {}
         self.player_dict: Dict[str, Player] = {}  # maintained by game.py.
 
     def __static_init__(self):
@@ -94,7 +117,7 @@ class World(Generic[C], Entity):
         self.__entity_dict_lock = Lock()
         self._isolated_list: List[Thread]
 
-    def world_tick(self, belong: Literal[None] = None) -> None:
+    def _world_tick(self, belong: Literal[None] = None) -> None:
         self._isolated_list = []
         time.sleep(0.1)
         with self.__entity_dict_lock:
@@ -103,20 +126,13 @@ class World(Generic[C], Entity):
             for _t in self._isolated_list:
                 _t.join()
 
-    def world_entity_plus(self) -> int:
+    def _world_entity_plus(self) -> int:
         """will be called whenever a entity is created"""
         with self.__entity_count_lock:
             self.entity_count += 1
         return self.entity_count
 
-    def world_new_character(self, pos: Vector) -> Character:
-        with self.__entity_dict_lock:
-            eid = self.world_entity_plus()
-            new_c = Character(eid=eid, pos=pos)
-            self.entity_dict[eid] = new_c
-            return new_c
-
-    def world_new_entity(self, cls: Type[C], pos: Vector, **kwargs) -> C:
+    def world_new_entity(self, cls: Type[Entities], **kwargs) -> Entities:
         """
         New an entity in the world.
 
@@ -126,8 +142,8 @@ class World(Generic[C], Entity):
         """
 
         with self.__entity_dict_lock:
-            eid = self.world_entity_plus()
-            new_e: cls = cls(eid=eid, pos=pos, **kwargs)
+            eid = self._world_entity_plus()
+            new_e: cls = cls(eid=eid, **kwargs)
             self.entity_dict[eid] = new_e
             cast(cls, new_e)
             return new_e
@@ -137,7 +153,7 @@ class World(Generic[C], Entity):
             if eid in self.entity_dict.keys():
                 self.entity_dict.pop(eid)
 
-    def world_get_entity(self, eid: int) -> Optional[Character]:
+    def world_get_entity(self, eid: int) -> Optional[Entity]:
         if eid in self.entity_dict.keys():
             return self.entity_dict[eid]
         else:
@@ -147,14 +163,15 @@ class World(Generic[C], Entity):
         self, char: Character, radius: float
     ) -> List[Character]:
         """Return character instances list near the position"""
-        rtn = []
+        rtn: List[Character] = []
 
         for ent in self.entity_dict.values():
-            if ent != char:  # Pass char itself
-                dis = self.world_get_natural_distance(char, ent)
-                if dis is not None:
-                    if dis - radius < 0:
-                        rtn.append(ent)
+            if Character.check(ent):
+                if ent != char:  # Pass char itself
+                    dis: float | None = self.world_get_natural_distance(char, ent)
+                    if dis is not None:
+                        if dis - radius < 0:
+                            rtn.append(ent)
         return rtn
 
     def world_get_character_index(self, ent: Character) -> Optional[int]:
@@ -173,25 +190,23 @@ class World(Generic[C], Entity):
         """Return the natural distance between char1 and char2.
         Return None, if any of character provided not exists."""
 
-        ent_list = self.entity_dict.values()
-
         if isinstance(target1, int):
-            char1 = self.world_get_entity(target1)
+            char1: Optional[Entity] = self.world_get_entity(target1)
         else:
             char1 = target1
 
         if isinstance(target2, int):
-            char2 = self.world_get_entity(target2)
+            char2: Optional[Entity] = self.world_get_entity(target2)
         else:
             char2 = target2
 
-        if (char1 is None) or (char2 is None):
+        if char1 is None or char2 is None:
             return None
 
-        if char1 in ent_list and char2 in ent_list:
-            p1 = char1.position
-            p2 = char2.position
-            dis = (p1 - p2).length()
+        if Character.check(char1) and Character.check(char2):
+            p1: Vector = char1.position
+            p2: Vector = char2.position
+            dis: float = (p1 - p2).length()
             return dis
 
         return None
@@ -202,7 +217,6 @@ class World(Generic[C], Entity):
         """Return the distance but in sum(delta x, y, z) like,
         (I call it lineal distance)
         Return None, if any of character provided not exists."""
-        ent_list = self.entity_dict.values()
 
         if isinstance(target1, int):
             char1 = self.world_get_entity(target1)
@@ -217,7 +231,7 @@ class World(Generic[C], Entity):
         if not (char1 and char2):
             return None
 
-        if char1 in ent_list and char2 in ent_list:
+        if Character.check(char1) and Character.check(char2):
             p1 = char1.position
             p2 = char2.position
             dis = abs(p1.x - p2.x) + abs(p1.y - p2.y) + abs(p1.z - p2.z)

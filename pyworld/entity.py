@@ -5,7 +5,7 @@ import uuid
 from threading import Lock
 from typing import TYPE_CHECKING, List, TypeVar
 
-from objprint import op  # type: ignore
+from objprint import op
 
 if TYPE_CHECKING:
     from pyworld.world import World
@@ -96,7 +96,7 @@ class Entity:
         status = self.__dict__.copy()
         pop_list: List[str] = []
         for key in status.keys():
-            if key[0] == '_':
+            if key[0] == "_":
                 pop_list.append(key)
         for key in pop_list:
             status.pop(key)
@@ -108,4 +108,4 @@ class Entity:
 
 
 if TYPE_CHECKING:
-    Entities = TypeVar('Entities', bound=Entity)
+    Entities = TypeVar("Entities", bound=Entity)
