@@ -12,60 +12,46 @@ from dataclasses import dataclass, field
 from threading import Lock
 from typing import (
     Any,
+    ClassVar,
+    Dict,
+    Generic,
     List,
     Optional,
-    final,
-    Dict,
-    ClassVar,
-    TypeVar,
-    Type,
-    Generic,
     Self,
+    Type,
+    TypeVar,
+    final,
 )
 
-from pyworld.world import Character, World
 from pyworld.control import ControlMixin, ControlResultModel
 from pyworld.datamodels.function_call import RequestModel
-
-
-class CargoThing:
-    """Things that could get stored in cargo"""
-
-    pass
-
-
-class ItemMeta(type):
-    """All items are singleton, stored in Item.all_items"""
-
-    def __new__(cls, name, bases, attrs):
-
-        if attrs["mass"] is None:
-            raise NotImplementedError("Item class must have mass")
-
-        return type.__new__(cls, name, bases, attrs)
+from pyworld.world import Character, World
 
 
 @dataclass
-class Item(metaclass=ItemMeta):
+class Item:
     all_items: ClassVar[Dict[str, Any]] = field(default_factory=dict)
     # all_items storage all singleton of item
 
-    mass: Optional[int] = field(default=None, init=False)
+    mass: int = field(default=0, init=False)
     # item must have mass interface
 
     def __new__(cls: Type[Items]) -> Items:
         """All item's subclass is singleton."""
 
-        name = cls.__class__.__name__
+        name = cls.__name__
         if name not in Item.all_items:
             Item.all_items[name] = super(Item, cls).__new__(cls)
         return Item.all_items[name]
+
+    def __post_init__(self) -> None:
+        assert self.mass > 0, NotImplementedError("Item class must have mass")
 
     @property
     def name(self) -> str:
         return self.__class__.__name__
 
-    def _tick(self, o: CargoMixin[Items], w: World[Character]):
+    def _tick(self, o: CargoMixin[Items], w: World[Character]) -> None:
         """Item could has _tick method"""
         pass
 
@@ -143,7 +129,7 @@ class Cargo(ControlMixin, UserDict[str, ItemStack[Items]]):
 
     @property
     def count(self) -> int:
-        return sum((i.num for i in self))
+        return sum((i.num for i in self.values()))
 
     def _append(self, o: ItemStack[Items]) -> None:
         # Cargo already has the same-named ItemStack
@@ -153,17 +139,13 @@ class Cargo(ControlMixin, UserDict[str, ItemStack[Items]]):
                 return
 
         # Cargo not yet has the same-named ItemStack
-        self.data[name] = o
+        self.data[o.name] = o
         return
 
     def _pop(self, key: str) -> Optional[ItemStack[Items]]:
         return self.data.pop(key, None)
 
-    def __iter__(self):
-        return self.data
 
-
-# FIXME: STOP AT HERE, CHECK BELOW
 class CargoMixin(Character, Generic[Items]):
     """Cargo"""
 
@@ -233,8 +215,8 @@ class CargoMixin(Character, Generic[Items]):
     def _cargo_tick(self, belong: World[Character]):
         """Tick every itemstack and item."""
         with self.__cargo_lock:
-            for c_thing in self.cargo:
-                c_thing._tick(o=self, w=belong)
+            for itemstack in self.cargo.values():
+                itemstack.item._tick(o=self, w=belong)
 
 
 class Radar(Item):
