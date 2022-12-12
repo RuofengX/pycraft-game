@@ -4,15 +4,10 @@ from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from game import Core
-
-from pyworld.player import Player
-from pyworld.datamodels.function_call import (
-    RequestModel,
-    ResultModel,
-    ServerRtn,
-)
-from pyworld.datamodels.websockets import WSCommand, WSPayload, WSStage
+from pyworld.datamodels.function_call import RequestModel, ResultModel, ServerRtn
 from pyworld.datamodels.property_cache import PropertyCache
+from pyworld.datamodels.websockets import WSCommand, WSPayload, WSStage
+from pyworld.player import Player
 
 
 def create_app(save_file_path: Optional[str]) -> FastAPI:
