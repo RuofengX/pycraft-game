@@ -18,7 +18,7 @@ class TestStruct(unittest.TestCase):
         self.ct.stop()
 
     def test_destroy(self):
-        self.struct.destroy()
+        self.struct._destroy()
         assert self.struct.is_destroyed
 
 

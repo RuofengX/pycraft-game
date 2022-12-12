@@ -7,13 +7,13 @@ from warnings import warn
 
 from pyworld.basic import Vector
 from pyworld.player import Player
-from pyworld.world import Continuum, World, Character
+from pyworld.world import Continuum, World
 
 
 class Core:
     def __init__(self, save_file_path: str | None = None) -> None:
 
-        world: Optional[World[Character]] = None
+        world: Optional[World] = None
         if save_file_path is not None:
             # Have path param, try to open it
             try:

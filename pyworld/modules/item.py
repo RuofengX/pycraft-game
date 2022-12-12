@@ -61,7 +61,7 @@ class Item:
     def to_stack(self, num: int = 1) -> ItemStack[Self]:
         return ItemStack(item=self, num=num)
 
-    def _tick(self, o: CargoMixin[Items], w: World[Character]) -> None:
+    def _tick(self, o: CargoMixin[Items], w: World) -> None:
         """Item could has _tick method"""
         pass
 
@@ -224,7 +224,7 @@ class CargoMixin(Character, Generic[Items]):
             stack = self.cargo._pop(name)
             return stack
 
-    def _cargo_tick(self, belong: World[Character]):
+    def _cargo_tick(self, belong: World):
         """Tick every itemstack and item."""
         with self.__cargo_lock:
             for itemstack in self.cargo.values():

@@ -2,24 +2,25 @@ from __future__ import annotations
 
 import pickle
 import uuid
-from concurrent.futures import ThreadPoolExecutor, Future
+from concurrent.futures import Future, ThreadPoolExecutor
 from threading import Lock, Thread
 from typing import (
     Any,
-    TYPE_CHECKING,
     Callable,
     Dict,
     List,
     Literal,
     Optional,
+    Protocol,
+    Self,
+    Type,
     TypeAlias,
-    TypeVar
+    TypeGuard,
+    TypeVar,
+    runtime_checkable,
 )
 
 from objprint import op  # type:ignore[import]
-
-if TYPE_CHECKING:
-    from pyworld.world import World
 
 
 class Entity:
@@ -62,10 +63,14 @@ class Entity:
         else:
             return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return self.uuid
 
-    def _tick(self, belong: Optional[World] = None) -> None:
+    def _tick_last(self, belong: Optional[Entity] = None) -> None:
+        """Will do after _tick"""
+        raise NotImplementedError()
+
+    def _tick(self, belong: Optional[Entity] = None) -> None:
         """Describe what a entity should do in a tick."""
 
         with self._tick_lock:
@@ -80,11 +85,11 @@ class Entity:
                 # __dict__ only returns properties.
                 if len(func) > 5:  # not _tick itself
                     if func[-5:] == "_tick":  # named after _tick
-                        target: Callable[[Optional[World]], None] = getattr(
-                            self, func
-                        )
+                        target: Callable[[Optional[Entity]], None] = getattr(self, func)
                         if callable(target):
                             target(belong)
+
+            self._tick_last(belong)
 
     def _report(self) -> None:
         """Report self, for logging or debugging usage."""
@@ -124,44 +129,49 @@ class Entity:
         self.__static_init__()
 
 
-FutureTick: TypeAlias = Callable[[Entity, Optional[World]], None]
+FutureTick: TypeAlias = Callable[[Entity, Optional[Entity]], None]
 
 
 class ConcurrentMixin(Entity):
-    """Add the ability that Entity could running concurrent ticks."""
+    """
+    Add the ability that Entity could running concurrent ticks.
+    Module will run every FutureTick in self.__concurrent_pending after
+    other tick is done.
+    """
 
-    def __static_init__(self):
+    def __static_init__(self) -> None:
         super().__static_init__()
-        self.__concurrent_pending: List[FutureTick] = []
-        self.__concurrent_future: List[Future[None]] = []
+        self.__pending: List[FutureTick] = []
 
     def _concurrent_tick_add(self, method: FutureTick) -> None:
         """When need running a _concurrent_tick, using this method."""
-        self.__concurrent_pending.append(method)
+        self.__pending.append(method)
 
-    def __concurrent_tick_last(self, w: Optional[World] = None) -> None:
-        """Tick when after all ticks done"""
-        if self.__concurrent_pending == []:
+    def _tick_last(self, belong: Optional[Entity] = None) -> None:
+        """Override the Entity._tick_last method."""
+
+        super()._tick_last(belong)
+
+        if self.__pending == []:  # If no pending, just pass.
             return
 
+        # Else, run every pending tick in pool
         with ThreadPoolExecutor(max_workers=16) as exe:
-            self.__concurrent_future = [
-                exe.submit(tick, self, w) for tick in self.__concurrent_pending
+            future_list: list[Future[None]] = [
+                exe.submit(tick, self, belong) for tick in self.__pending
             ]
 
-        self.__concurrent_pending = []
+        self.__pending = []  # clear up
 
-    def _tick(self, belong: Optional[World] = None) -> None:
-        super()._tick(belong)
-
-        if belong is None:
-            self.__concurrent_tick_last()
-        else:
-            self.__concurrent_tick_last(belong)
-
-        for future in self.__concurrent_future:
-            future.result()
-        self.__concurrent_future = []
+        for future in future_list:
+            future.result()  # wait for every future is done
 
 
 Entities = TypeVar("Entities", bound=Entity)
+
+
+@runtime_checkable
+class CheckableProtocol(Protocol):
+    @classmethod
+    def check(cls, obj: Entity) -> TypeGuard[Type[Self]]:
+        ...

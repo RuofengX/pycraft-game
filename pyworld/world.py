@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from functools import wraps
 from threading import Lock, Thread
 from typing import (
     TYPE_CHECKING,
@@ -13,27 +14,20 @@ from typing import (
     Protocol,
     Type,
     TypeGuard,
+    cast,
     runtime_checkable,
 )
-from functools import wraps
 
 from pyworld.basic import Vector
-from pyworld.entity import Entity, ConcurrentMixin, Entities
+from pyworld.entity import ConcurrentMixin, Entities, Entity, FutureTick
 
 if TYPE_CHECKING:
     from pyworld.player import Player
 
 
-@runtime_checkable
-class Characters(Protocol):
-    pos: Vector
-    velocity: Vector
-    acceleration: Vector
-
-
 def mark_isolate(
-    func: Callable[[Entity, Optional[World]], None]
-) -> Callable[[Entity, World], None]:
+    func: Callable[[Entities, World], None]
+) -> Callable[[Entities, World], None]:
     """
     Used to decorate tick method of entity.
 
@@ -41,14 +35,21 @@ def mark_isolate(
     """
 
     @wraps(func)
-    def rtn(_self: Entity, belong: World) -> None:
+    def rtn(_, belong: World) -> None:
         assert belong is not None, TypeError(
             "`mark_isolate` decorate must have a belong world."
         )
-        belong._concurrent_tick_add(func)
+        belong._concurrent_tick_add(cast(FutureTick, func))
         return None
 
     return rtn
+
+
+@runtime_checkable
+class Characters(Protocol):
+    pos: Vector
+    velocity: Vector
+    acceleration: Vector
 
 
 class Character(Entity):
@@ -87,7 +88,7 @@ class Character(Entity):
 
         if not self.acceleration.is_zero():
             self.velocity += self.acceleration
-            self.acceleration = Vector.zero()
+            self.acceleration: Vector = Vector.zero()
 
         # Velocity will keep changing the position of a entity
         if not self.velocity.is_zero():
@@ -126,7 +127,7 @@ class World(ConcurrentMixin, Entity):
             self.entity_count += 1
         return self.entity_count
 
-    def world_new_entity(self, cls: Type[Entity], **kwargs) -> Entity:
+    def world_new_entity(self, cls: Type[Entities], **kwargs) -> Entities:
         """
         New an entity in the world.
 
@@ -139,7 +140,7 @@ class World(ConcurrentMixin, Entity):
             eid = self._world_entity_plus()
             new_e: Entity = cls(eid=eid, **kwargs)
             self.entity_dict[eid] = new_e
-            return new_e
+            return cast(cls, new_e)
 
     def world_del_entity(self, eid: int) -> None:
         with self.__entity_dict_lock:
@@ -152,7 +153,7 @@ class World(ConcurrentMixin, Entity):
         else:
             return None
 
-    def world_get_nearby_character(
+    def world_get_nearby_entity(
         self, char: Character, radius: float
     ) -> List[Character]:
         """Return character instances list near the position"""
@@ -167,14 +168,14 @@ class World(ConcurrentMixin, Entity):
                             rtn.append(ent)
         return rtn
 
-    def world_get_entity_index(self, ent: Entities) -> Optional[int]:
+    def world_get_entity_index(self, ent: Entity) -> Optional[int]:
         for item in self.entity_dict.items():
             k, v = item
             if v == ent:
                 return k
         return None
 
-    def world_entity_exists(self, ent: Entities) -> bool:
+    def world_entity_exists(self, ent: Entity) -> bool:
         return ent in self.entity_dict
 
     def world_get_natural_distance(
@@ -236,7 +237,7 @@ class World(ConcurrentMixin, Entity):
 class Continuum(Thread):
     """World with time"""
 
-    def __init__(self, world: Optional[World[Entity]] = None):
+    def __init__(self, world: Optional[World] = None):
         super().__init__()
         if world is None:
             world = World()

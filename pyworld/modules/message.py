@@ -128,7 +128,7 @@ class MsgMixin(MsgInboxMixin, Character):
         return payload.msg_id
 
     @classmethod
-    def _msg_target_has_inbox(cls, target: Character) -> TypeGuard[MsgInboxMixin]:
+    def _msg_target_has_inbox(cls, target: Entity) -> TypeGuard[MsgInboxMixin]:
         """Check target character has inbox"""
         return hasattr(target, "msg_inbox")
 
@@ -151,7 +151,7 @@ class MsgMixin(MsgInboxMixin, Character):
 
                         if dis <= p.radius:
                             """Only send msg in radius"""
-                            target = belong.entity_dict[p.target_eid]
+                            target: Entity = belong.entity_dict[p.target_eid]
                             if self._msg_target_has_inbox(target):  # duck type
                                 target.msg_inbox.append(p.content)
                                 p.status_update(MsgStatus.SENT)
