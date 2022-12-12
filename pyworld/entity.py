@@ -2,20 +2,21 @@ from __future__ import annotations
 
 import pickle
 import uuid
-from functools import wraps
+from concurrent.futures import ThreadPoolExecutor, Future
 from threading import Lock, Thread
 from typing import (
+    Any,
     TYPE_CHECKING,
     Callable,
+    Dict,
     List,
     Literal,
     Optional,
-    Tuple,
     TypeAlias,
-    TypeVar,
+    TypeVar
 )
 
-from objprint import op
+from objprint import op  # type:ignore[import]
 
 if TYPE_CHECKING:
     from pyworld.world import World
@@ -52,6 +53,7 @@ class Entity:
 
         Very useful for those property that cannot be pickled."""
         self._tick_lock = Lock()
+        self.__isolate_list: List[Thread] = []
         self.__static_called_check: Literal[True] = True
 
     def __eq__(self, other):
@@ -63,7 +65,7 @@ class Entity:
     def __hash__(self):
         return self.uuid
 
-    def _tick(self, belong: None | World = None) -> None:
+    def _tick(self, belong: Optional[World] = None) -> None:
         """Describe what a entity should do in a tick."""
 
         with self._tick_lock:
@@ -78,7 +80,7 @@ class Entity:
                 # __dict__ only returns properties.
                 if len(func) > 5:  # not _tick itself
                     if func[-5:] == "_tick":  # named after _tick
-                        target: Callable[[Optional[World[Entity]]], None] = getattr(
+                        target: Callable[[Optional[World]], None] = getattr(
                             self, func
                         )
                         if callable(target):
@@ -89,7 +91,7 @@ class Entity:
         if self.age % 20 == 0:
             op(self.__dict__)
 
-    def get_state(self) -> dict:
+    def get_state(self) -> Dict[str, Any]:
         """Return the entity state dict."""
         return self.__getstate__()
 
@@ -97,7 +99,7 @@ class Entity:
         """Return the entity pickle binary."""
         return pickle.dumps(self)
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> Dict[str, Any]:
         """
         Get everything that matters,
 
@@ -117,56 +119,49 @@ class Entity:
             status.pop(key)
         return status
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: Dict[str, Any]) -> None:
         self.__dict__.update(state)
         self.__static_init__()
 
 
-if TYPE_CHECKING:
-    Entities = TypeVar("Entities", bound=Entity)
+FutureTick: TypeAlias = Callable[[Entity, Optional[World]], None]
 
 
-def tick_isolate(
-    func: Callable[[Entities, World], None]
-) -> Callable[[Entities, World], None]:
-    """
-    Used to decorate tick method of character.
+class ConcurrentMixin(Entity):
+    """Add the ability that Entity could running concurrent ticks."""
 
-    Unblocking run in another thread
-    Record the reference of thread in world._isolated_list
+    def __static_init__(self):
+        super().__static_init__()
+        self.__concurrent_pending: List[FutureTick] = []
+        self.__concurrent_future: List[Future[None]] = []
 
-    Non-block run the decorate function(_tick)
-    """
+    def _concurrent_tick_add(self, method: FutureTick) -> None:
+        """When need running a _concurrent_tick, using this method."""
+        self.__concurrent_pending.append(method)
 
-    @wraps(func)
-    def rtn(_self: Entities, belong: World) -> None:
-        # TODO: Use thread-pool to limit the max num of thread
-        _t = Thread(target=func, args=(_self, belong))
-        belong._isolated_list.append(_t)
-        _t.start()
-        return None
+    def __concurrent_tick_last(self, w: Optional[World] = None) -> None:
+        """Tick when after all ticks done"""
+        if self.__concurrent_pending == []:
+            return
 
-    return rtn
+        with ThreadPoolExecutor(max_workers=16) as exe:
+            self.__concurrent_future = [
+                exe.submit(tick, self, w) for tick in self.__concurrent_pending
+            ]
+
+        self.__concurrent_pending = []
+
+    def _tick(self, belong: Optional[World] = None) -> None:
+        super()._tick(belong)
+
+        if belong is None:
+            self.__concurrent_tick_last()
+        else:
+            self.__concurrent_tick_last(belong)
+
+        for future in self.__concurrent_future:
+            future.result()
+        self.__concurrent_future = []
 
 
-FutureTick: TypeAlias = Callable[[Entity, World[Entity]], None]
-
-
-class ScheduleMixin(Entity):
-    def __init__(self) -> None:
-        self.schedule_pending: List[Tuple[FutureTick, bool]] = []
-
-    def _schedule_add(self, method: FutureTick, isolate: Optional[bool] = None) -> None:
-        if isolate is None:
-            isolate = False
-
-        self.schedule_pending.append(
-            (method, isolate)
-        )
-
-    def _schedule_tick(self, world: World[Entity]) -> None:
-        for method, isolate in self.schedule_pending:
-            if not isolate:
-                method(self, world)
-            else:
-                tick_isolate(method)(self, world)
+Entities = TypeVar("Entities", bound=Entity)

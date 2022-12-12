@@ -5,20 +5,20 @@ from threading import Lock, Thread
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
-    Generic,
     List,
     Literal,
     Optional,
     Protocol,
     Type,
     TypeGuard,
-    cast,
     runtime_checkable,
 )
+from functools import wraps
 
 from pyworld.basic import Vector
-from pyworld.entity import Entities, Entity, tick_isolate
+from pyworld.entity import Entity, ConcurrentMixin, Entities
 
 if TYPE_CHECKING:
     from pyworld.player import Player
@@ -29,6 +29,26 @@ class Characters(Protocol):
     pos: Vector
     velocity: Vector
     acceleration: Vector
+
+
+def mark_isolate(
+    func: Callable[[Entity, Optional[World]], None]
+) -> Callable[[Entity, World], None]:
+    """
+    Used to decorate tick method of entity.
+
+    World will run all marked method after all ticks done and parallered.
+    """
+
+    @wraps(func)
+    def rtn(_self: Entity, belong: World) -> None:
+        assert belong is not None, TypeError(
+            "`mark_isolate` decorate must have a belong world."
+        )
+        belong._concurrent_tick_add(func)
+        return None
+
+    return rtn
 
 
 class Character(Entity):
@@ -50,7 +70,7 @@ class Character(Entity):
         self.velocity = velo
         self.acceleration = Vector(0, 0, 0)
 
-    def _tick(self, belong: None | World = None) -> None:
+    def _tick(self, belong: Optional[World] = None) -> None:
 
         assert belong is not None, ValueError(
             "Tick method of Character must have valid belong parameter,"
@@ -59,11 +79,12 @@ class Character(Entity):
 
         super()._tick(belong=belong)
 
-    @tick_isolate
-    def _position_tick(self, belong: World) -> None:
+    @mark_isolate
+    def _position_tick(self, belong: Optional[World]) -> None:
         # Acceleration will set to 0 after a accelerate
         # if you want to continue accelerate a entity,
         # KEEP A FORCE ON IT.
+
         if not self.acceleration.is_zero():
             self.velocity += self.acceleration
             self.acceleration = Vector.zero()
@@ -73,7 +94,7 @@ class Character(Entity):
             self.position += self.velocity
 
 
-class World(Entity, Generic[Entities]):
+class World(ConcurrentMixin, Entity):
     """
     The container of a set of entity.
 
@@ -83,7 +104,7 @@ class World(Entity, Generic[Entities]):
     def __init__(self) -> None:
         super().__init__(eid=0)
         self.entity_count = 0  # entity in total when the world created
-        self.entity_dict: Dict[int, Entities] = {}
+        self.entity_dict: Dict[int, Entity] = {}
         self.player_dict: Dict[str, Player] = {}  # maintained by game.py.
 
     def __static_init__(self):
@@ -98,8 +119,6 @@ class World(Entity, Generic[Entities]):
         with self.__entity_dict_lock:
             for ent in self.entity_dict.values():
                 ent._tick(belong=self)
-            for _t in self._isolated_list:
-                _t.join()
 
     def _world_entity_plus(self) -> int:
         """will be called whenever a entity is created"""
@@ -107,7 +126,7 @@ class World(Entity, Generic[Entities]):
             self.entity_count += 1
         return self.entity_count
 
-    def world_new_entity(self, cls: Type[Entities], **kwargs) -> Entities:
+    def world_new_entity(self, cls: Type[Entity], **kwargs) -> Entity:
         """
         New an entity in the world.
 
@@ -118,9 +137,8 @@ class World(Entity, Generic[Entities]):
 
         with self.__entity_dict_lock:
             eid = self._world_entity_plus()
-            new_e: cls = cls(eid=eid, **kwargs)
+            new_e: Entity = cls(eid=eid, **kwargs)
             self.entity_dict[eid] = new_e
-            cast(cls, new_e)
             return new_e
 
     def world_del_entity(self, eid: int) -> None:
@@ -149,14 +167,14 @@ class World(Entity, Generic[Entities]):
                             rtn.append(ent)
         return rtn
 
-    def world_get_character_index(self, ent: Character) -> Optional[int]:
+    def world_get_entity_index(self, ent: Entities) -> Optional[int]:
         for item in self.entity_dict.items():
             k, v = item
             if v == ent:
                 return k
         return None
 
-    def world_character_exists(self, ent: Character) -> bool:
+    def world_entity_exists(self, ent: Entities) -> bool:
         return ent in self.entity_dict
 
     def world_get_natural_distance(
@@ -218,7 +236,7 @@ class World(Entity, Generic[Entities]):
 class Continuum(Thread):
     """World with time"""
 
-    def __init__(self, world: Optional[World] = None):
+    def __init__(self, world: Optional[World[Entity]] = None):
         super().__init__()
         if world is None:
             world = World()
