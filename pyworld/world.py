@@ -35,11 +35,11 @@ def mark_isolate(
     """
 
     @wraps(func)
-    def rtn(_, belong: World) -> None:
+    def rtn(owner: Entities, belong: World) -> None:
         assert belong is not None, TypeError(
             "`mark_isolate` decorate must have a belong world."
         )
-        belong._concurrent_tick_add(cast(FutureTick, func))
+        belong._concurrent_tick_add(owner, cast(FutureTick, func))
         return None
 
     return rtn
@@ -138,9 +138,9 @@ class World(ConcurrentMixin, Entity):
 
         with self.__entity_dict_lock:
             eid = self._world_entity_plus()
-            new_e: Entity = cls(eid=eid, **kwargs)
+            new_e: Entities = cls(eid=eid, **kwargs)
             self.entity_dict[eid] = new_e
-            return cast(cls, new_e)
+            return new_e
 
     def world_del_entity(self, eid: int) -> None:
         with self.__entity_dict_lock:

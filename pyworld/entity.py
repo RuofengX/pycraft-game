@@ -13,7 +13,7 @@ from typing import (
     Optional,
     Protocol,
     Self,
-    Type,
+    Tuple,
     TypeAlias,
     TypeGuard,
     TypeVar,
@@ -35,7 +35,7 @@ class Entity:
         Character
     """
 
-    def __init__(self, *, eid: int = -1):
+    def __init__(self, eid: int = -1):
         """Entity type only accept kwargs arguments."""
         self.__static_init__()
         self.eid = eid
@@ -68,7 +68,7 @@ class Entity:
 
     def _tick_last(self, belong: Optional[Entity] = None) -> None:
         """Will do after _tick"""
-        raise NotImplementedError()
+        pass
 
     def _tick(self, belong: Optional[Entity] = None) -> None:
         """Describe what a entity should do in a tick."""
@@ -141,11 +141,11 @@ class ConcurrentMixin(Entity):
 
     def __static_init__(self) -> None:
         super().__static_init__()
-        self.__pending: List[FutureTick] = []
+        self.__pending: List[Tuple[FutureTick, Entity]] = []
 
-    def _concurrent_tick_add(self, method: FutureTick) -> None:
+    def _concurrent_tick_add(self, owner: Entity, method: FutureTick) -> None:
         """When need running a _concurrent_tick, using this method."""
-        self.__pending.append(method)
+        self.__pending.append((method, owner))
 
     def _tick_last(self, belong: Optional[Entity] = None) -> None:
         """Override the Entity._tick_last method."""
@@ -158,7 +158,9 @@ class ConcurrentMixin(Entity):
         # Else, run every pending tick in pool
         with ThreadPoolExecutor(max_workers=16) as exe:
             future_list: list[Future[None]] = [
-                exe.submit(tick, self, belong) for tick in self.__pending
+                exe.submit(
+                    *tick, belong
+                ) for tick in self.__pending  # type: Tuple[FutureTick, Entity]
             ]
 
         self.__pending = []  # clear up
@@ -173,5 +175,5 @@ Entities = TypeVar("Entities", bound=Entity)
 @runtime_checkable
 class CheckableProtocol(Protocol):
     @classmethod
-    def check(cls, obj: Entity) -> TypeGuard[Type[Self]]:
+    def check(cls, obj: Entity) -> TypeGuard[Self]:
         ...

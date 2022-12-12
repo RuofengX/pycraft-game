@@ -1,14 +1,13 @@
 from dataclasses import dataclass, field
-from typing import ClassVar, List, Optional, Type, cast
+from typing import ClassVar, List, Optional, Type, get_args
 
-from pyworld.entity import Entity
-from pyworld.modules.equipment import Equipment, EquipmentMixin, EquipmentStatus
+from pyworld.modules.equipment import Equipment, EquipStatus
 from pyworld.world import Character, World
 
 
 @dataclass
-class Radar(Equipment):
-    required_module: ClassVar[List[Type[Entity]]] = [Character]
+class Radar(Equipment[Character]):
+    required_module: ClassVar[Type[Character]] = Character
     radius: int = 0
     interval_tick: int = 100
     auto_scan: bool = True
@@ -27,11 +26,15 @@ class Radar(Equipment):
         else:
             self.auto_scan = target
 
-    def _tick(self, o: EquipmentMixin, w: World):
-        if self.status == EquipmentStatus.FINE:  # o is
+    def _tick(self, o: Character, w: World):
+        super()._tick(o, w)
+        if self.status == EquipStatus.FINE:  # o is Character
             if self.auto_scan:
                 if o.age % self.interval_tick == 0:  # use the interval
                     self.characters_list = w.world_get_nearby_entity(
                         char=o, radius=self.radius
                     )
                     self.last_update = w.age
+
+
+print(get_args(Radar))

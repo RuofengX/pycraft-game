@@ -1,14 +1,14 @@
 import unittest
-from dataclasses import dataclass
 
 from pyworld.basic import Vector
 from pyworld.entity import Entity
 from pyworld.world import Character, Continuum, World
 
 
-@dataclass
 class TestEntity(Entity):
-    _test_target: bool = False
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._test_target: bool = False
 
     def _test_tick(self, belong: World) -> None:
         self._test_target = True
