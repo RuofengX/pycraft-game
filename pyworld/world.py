@@ -19,7 +19,7 @@ from typing import (
 )
 
 from pyworld.basic import Vector
-from pyworld.entity import ConcurrentMixin, Entities, Entity, FutureTick
+from pyworld.entity import Checkable, ConcurrentMixin, Entities, Entity, FutureTick
 
 if TYPE_CHECKING:
     from pyworld.player import Player
@@ -31,7 +31,8 @@ def mark_isolate(
     """
     Used to decorate tick method of entity.
 
-    World will run all marked method after all ticks done and parallered.
+    World will run all marked method after all ticks done in a paralleled thread pool.
+    Isolate tick method should NEVER interact any resource protected by a lock.
     """
 
     @wraps(func)
@@ -46,13 +47,13 @@ def mark_isolate(
 
 
 @runtime_checkable
-class Characters(Protocol):
-    pos: Vector
+class Movable(Protocol):
+    position: Vector
     velocity: Vector
     acceleration: Vector
 
 
-class Character(Entity):
+class Character(Checkable, Entity):
     """Stand for every character, belongs to a world
 
     Character has position, velocity and acceleration.
@@ -61,7 +62,7 @@ class Character(Entity):
 
     @staticmethod
     def check(ent: Any) -> TypeGuard[Character]:
-        return isinstance(ent, Characters)
+        return isinstance(ent, Movable)
 
     def __init__(
         self, *, eid: int, pos: Vector, velo: Vector = Vector(0, 0, 0), **kwargs
@@ -105,24 +106,20 @@ class World(ConcurrentMixin, Entity):
     def __init__(self) -> None:
         super().__init__(eid=0)
         self.entity_count = 0  # entity in total when the world created
-        self.entity_dict: Dict[int, Entity] = {}
+        self.entity_dict: Dict[int, Entity] = {}  # CPython's dict is thread-safe
         self.player_dict: Dict[str, Player] = {}  # maintained by game.py.
 
-    def __static_init__(self):
+    def __static_init__(self) -> None:
         super().__static_init__()
         self.__entity_count_lock = Lock()
-        self.__entity_dict_lock = Lock()
-        self._isolated_list: List[Thread]
 
     def _world_tick(self, belong: Literal[None] = None) -> None:
-        self._isolated_list = []
         time.sleep(0.1)
-        with self.__entity_dict_lock:
-            for ent in self.entity_dict.values():
-                ent._tick(belong=self)
+        for ent in self.entity_dict.values():
+            ent._tick(belong=self)
 
     def _world_entity_plus(self) -> int:
-        """will be called whenever a entity is created"""
+        """will be called whenever an entity is created"""
         with self.__entity_count_lock:
             self.entity_count += 1
         return self.entity_count
@@ -136,16 +133,14 @@ class World(ConcurrentMixin, Entity):
         first argument of cls build method.
         """
 
-        with self.__entity_dict_lock:
-            eid = self._world_entity_plus()
-            new_e: Entities = cls(eid=eid, **kwargs)
-            self.entity_dict[eid] = new_e
-            return new_e
+        eid = self._world_entity_plus()
+        new_e: Entities = cls(eid=eid, **kwargs)
+        self.entity_dict[eid] = new_e
+        return new_e
 
     def world_del_entity(self, eid: int) -> None:
-        with self.__entity_dict_lock:
-            if eid in self.entity_dict.keys():
-                self.entity_dict.pop(eid)
+        if eid in self.entity_dict.keys():
+            self.entity_dict.pop(eid)
 
     def world_get_entity(self, eid: int) -> Optional[Entity]:
         if eid in self.entity_dict.keys():
@@ -242,7 +237,6 @@ class Continuum(Thread):
         if world is None:
             world = World()
         self.world = world
-        self.__world_lock = Lock()
         self.stop_flag = False
         self.pause_flag = False
         self.is_idle = True  # tick is not running
@@ -267,18 +261,12 @@ class Continuum(Thread):
         Use `.start()` method instead.
         """
 
-        while not self.stop_flag:
-            # PAUSE | IDLE | TICK
-            while not self.pause_flag:
-                # IDLE | TICK
-                self.is_idle = False
-                # TICK
-                with self.__world_lock:
-                    self.world._tick()
-                self.is_idle = True
-                # IDLE
-            # PAUSE
-        # EXIT
+        while not self.stop_flag:  # -> STOP
+            while not self.pause_flag:  # -> PAUSE
+                self.is_idle = False  # -> TICK
+                self.world._tick()  # -> TICK
+                self.is_idle = True  # ->IDLE
+        return  # -> EXIT
 
     def pause(self):
         """Wait until the game pause.
