@@ -37,7 +37,7 @@ class Item:
     Methods: See docs below.
     """
 
-    all_items: ClassVar[Dict[str, Any]] = field(default_factory=dict)
+    all_items: ClassVar[Dict[str, Any]]
     # all_items storage all singleton of item
 
     mass: int = field(default=0, init=False)
