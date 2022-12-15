@@ -160,7 +160,7 @@ def create_app(save_file_path: Optional[str]) -> FastAPI:
 
             except Exception as e:
                 stop_flag = True
-                payload.close(stage, "UnexceptedError", e)
+                payload.close(stage, "UnexpectedError", e)
 
             finally:
                 if stop_flag:
@@ -170,3 +170,6 @@ def create_app(save_file_path: Optional[str]) -> FastAPI:
                         pass
 
     return app
+
+
+app = create_app(save_file_path="save-301286.bin")

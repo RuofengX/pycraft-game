@@ -8,6 +8,9 @@ Pycraft official provides a public server, feel free to try!
 
 ## The game is still working in progress
 
+Run `uvicorn server:app --reload` to start the server for test and preview.
+Open `http://localhost:8000/docs` to get more.
+
 ## Some principles
 
 1. Free is for Freedom. Be free and easy to code and play.
