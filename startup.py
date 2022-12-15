@@ -1,5 +1,3 @@
-from typing import Optional
-
 import typer
 import uvicorn
 
@@ -7,7 +5,7 @@ from server import create_app
 
 
 def main(
-    save_file_path: Optional[str] = None,
+    save_file_path: str,
     host: str = "127.0.0.1",
     port: int = 8000,
 ):
