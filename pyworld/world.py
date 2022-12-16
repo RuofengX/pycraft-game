@@ -53,7 +53,7 @@ class Movable(Protocol):
     acceleration: Vector
 
 
-class Character(Checkable, Entity):
+class Character(Entity):
     """Stand for every character, belongs to a world
 
     Character has position, velocity and acceleration.
