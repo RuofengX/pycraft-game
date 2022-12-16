@@ -30,6 +30,7 @@ class TestWorld(unittest.TestCase):
         )
         self.ct.world._tick()
         assert c_move.position == Vector(0, 0, 1)
+    
 
 
 if __name__ == "__main__":

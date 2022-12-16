@@ -4,23 +4,11 @@ import pickle
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
 from threading import Lock
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Protocol,
-    Self,
-    Tuple,
-    TypeAlias,
-    TypeGuard,
-    TypeVar,
-    runtime_checkable,
-)
+from typing import (Any, Callable, Dict, List, Literal, Optional, Protocol,
+                    Self, Tuple, TypeAlias, TypeGuard, TypeVar,
+                    runtime_checkable)
 
-from objprint import op  # type:ignore[import]
+from objprint import op
 
 
 class Entity:
@@ -37,6 +25,7 @@ class Entity:
 
     def __init__(self, eid: int = -1):
         """Entity only accept kwargs arguments."""
+        self.__static_called_check: bool = False
         self.__static_init__()
         self.eid = eid
         self.age = 0
@@ -53,13 +42,14 @@ class Entity:
         and re-init after un-pickling. Since unpickle processing won't
         run __init__ again, so all the property(cannot be pickled) should
         defined in this method to ensure a proper re-init.
+        
         The save process only happened when tick is done, so all Lock() instance
         is released when pickling.
 
         Very useful for those property that cannot be pickled."""
 
         self._tick_lock = Lock()  # Lock when entity is ticking.
-        self.__static_called_check: Literal[True] = True
+        self.__static_called_check = True
 
     def __eq__(self, other):
         if isinstance(other, Entity):
@@ -181,7 +171,7 @@ class ConcurrentMixin(Entity):
             future_list: list[Future[None]] = [
                 exe.submit(
                     *tick, belong
-                ) for tick in self.__pending  # type: Tuple[FutureTick, Entity]
+                ) for tick in self.__pending
             ]
 
         self.__pending = []  # clear up
