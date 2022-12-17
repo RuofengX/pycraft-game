@@ -52,7 +52,7 @@ class Positional(Protocol):
 
 
 @runtime_checkable
-class Movable(Positional):
+class Movable(Positional, Protocol):
     position: Vector
     velocity: Vector
     acceleration: Vector
