@@ -171,7 +171,7 @@ class World(ConcurrentMixin, Entity):
         return rtn
 
     def world_entity_exists(self, ent: Entity) -> bool:
-        return ent in self.entity_dict
+        return ent in self.entity_dict.values()
 
     def world_get_natural_distance(
         self, target1: Character | int, target2: Character | int
