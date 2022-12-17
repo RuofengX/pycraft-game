@@ -19,7 +19,7 @@ from typing import (
 )
 
 from pyworld.basic import Vector
-from pyworld.entity import Checkable, ConcurrentMixin, Entities, Entity, FutureTick
+from pyworld.entity import ConcurrentMixin, Entities, Entity, FutureTick
 
 if TYPE_CHECKING:
     from pyworld.player import Player
@@ -138,15 +138,22 @@ class World(ConcurrentMixin, Entity):
         self.entity_dict[eid] = new_e
         return new_e
 
-    def world_del_entity(self, eid: int) -> None:
-        if eid in self.entity_dict.keys():
-            self.entity_dict.pop(eid)
+    def world_get_entity_index(self, ent: Entity) -> Optional[int]:
+        for item in self.entity_dict.items():
+            k, v = item
+            if v == ent:
+                return k
+        return None
 
     def world_get_entity(self, eid: int) -> Optional[Entity]:
         if eid in self.entity_dict.keys():
             return self.entity_dict[eid]
         else:
             return None
+
+    def world_del_entity(self, eid: int) -> None:
+        if eid in self.entity_dict.keys():
+            self.entity_dict.pop(eid)
 
     def world_get_nearby_entity(
         self, char: Character, radius: float
@@ -162,13 +169,6 @@ class World(ConcurrentMixin, Entity):
                         if dis - radius < 0:
                             rtn.append(ent)
         return rtn
-
-    def world_get_entity_index(self, ent: Entity) -> Optional[int]:
-        for item in self.entity_dict.items():
-            k, v = item
-            if v == ent:
-                return k
-        return None
 
     def world_entity_exists(self, ent: Entity) -> bool:
         return ent in self.entity_dict
