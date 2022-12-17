@@ -47,7 +47,12 @@ def mark_isolate(
 
 
 @runtime_checkable
-class Movable(Protocol):
+class Positional(Protocol):
+    position: Vector
+
+
+@runtime_checkable
+class Movable(Positional):
     position: Vector
     velocity: Vector
     acceleration: Vector
@@ -173,28 +178,33 @@ class World(ConcurrentMixin, Entity):
     def world_entity_exists(self, ent: Entity) -> bool:
         return ent in self.entity_dict.values()
 
+    def __valid_entity_input(self, source: Entity | int) -> Optional[Entity]:
+        if isinstance(source, int):
+
+            if source not in self.entity_dict:
+                return None
+
+            return self.entity_dict[source]
+        else:
+            if not self.world_entity_exists(source):
+                return None
+
+            return source
+
     def world_get_natural_distance(
-        self, target1: Character | int, target2: Character | int
+        self, target1: Entity | int, target2: Entity | int
     ) -> Optional[float]:
         """Return the natural distance between char1 and char2.
         Return None, if any of character provided not exists."""
 
-        if isinstance(target1, int):
-            char1: Optional[Entity] = self.world_get_entity(target1)
-        else:
-            char1 = target1
+        valid1, valid2 = map(self.__valid_entity_input, (target1, target2))
 
-        if isinstance(target2, int):
-            char2: Optional[Entity] = self.world_get_entity(target2)
-        else:
-            char2 = target2
-
-        if char1 is None or char2 is None:
+        if (valid1 is None) or (valid2 is None):
             return None
 
-        if Character.check(char1) and Character.check(char2):
-            p1: Vector = char1.position
-            p2: Vector = char2.position
+        if isinstance(valid1, Positional) and isinstance(valid2, Positional):
+            p1: Vector = valid1.position
+            p2: Vector = valid2.position
             dis: float = (p1 - p2).length()
             return dis
 
@@ -207,22 +217,14 @@ class World(ConcurrentMixin, Entity):
         (I call it lineal distance)
         Return None, if any of character provided not exists."""
 
-        if isinstance(target1, int):
-            char1 = self.world_get_entity(target1)
-        else:
-            char1 = target1
+        valid1, valid2 = map(self.__valid_entity_input, (target1, target2))
 
-        if isinstance(target2, int):
-            char2 = self.world_get_entity(target2)
-        else:
-            char2 = target2
-
-        if not (char1 and char2):
+        if (valid1 is None) or (valid2 is None):
             return None
 
-        if Character.check(char1) and Character.check(char2):
-            p1 = char1.position
-            p2 = char2.position
+        if isinstance(valid1, Positional) and isinstance(valid2, Positional):
+            p1 = valid1.position
+            p2 = valid2.position
             dis = abs(p1.x - p2.x) + abs(p1.y - p2.y) + abs(p1.z - p2.z)
             return dis
 
