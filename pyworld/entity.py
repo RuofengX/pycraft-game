@@ -4,9 +4,20 @@ import pickle
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
 from threading import Lock
-from typing import (Any, Callable, Dict, List, Literal, Optional, Protocol,
-                    Self, Tuple, TypeAlias, TypeGuard, TypeVar,
-                    runtime_checkable)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+    Self,
+    Tuple,
+    TypeAlias,
+    TypeGuard,
+    TypeVar,
+    runtime_checkable,
+)
 
 from objprint import op
 
@@ -42,7 +53,7 @@ class Entity:
         and re-init after un-pickling. Since unpickle processing won't
         run __init__ again, so all the property(cannot be pickled) should
         defined in this method to ensure a proper re-init.
-        
+
         The save process only happened when tick is done, so all Lock() instance
         is released when pickling.
 
