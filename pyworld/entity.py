@@ -101,7 +101,7 @@ class Entity:
         self.eid = eid
         self.age = 0
         self.uuid: int = uuid.uuid4().int
-        self.report_flag = False
+        self._report_flag = False
 
         self.log_flag = False
         self.tick_log: List[TickLogModel] = []
@@ -175,6 +175,8 @@ class Entity:
 
     def _report_tick(self, belong) -> None:
         """Report self, for logging or debugging usage."""
+        if not self._report_flag:
+            return
         if self.age % 20 == 0:
             op(self.__dict__)
 
