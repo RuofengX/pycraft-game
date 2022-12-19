@@ -2,16 +2,70 @@ from __future__ import annotations
 
 import pickle
 import uuid
+from _thread import LockType
 from concurrent.futures import Future, ThreadPoolExecutor
+from functools import wraps
 from threading import Lock
-from typing import (Any, Callable, Dict, List, Optional,
-                    Protocol, Self, Tuple, TypeAlias, TypeGuard, TypeVar,
-                    runtime_checkable)
+from typing import (
+    Any,
+    Callable,
+    Concatenate,
+    Dict,
+    List,
+    Optional,
+    ParamSpec,
+    Protocol,
+    Self,
+    Tuple,
+    TypeAlias,
+    TypeGuard,
+    TypeVar,
+    runtime_checkable,
+)
 
 from objprint import op
 from pydantic import BaseModel
 
 from pyworld.datamodels.function_call import ExceptionModel, RtnStatus
+
+T = TypeVar("T")
+P = ParamSpec("P")
+
+
+def with_instance_lock(lock_name: str, debug: bool = False):
+    """
+    Used in Entity's method define, return a decorate:
+
+    The raw func's first args must be Entities type.
+    Will auto require the instance's lock by given name, then run the raw func.
+
+    """
+
+    def has_lock(target: Entity, lock_name: str) -> Optional[LockType]:
+        if hasattr(target, lock_name):
+            lock = getattr(target, lock_name)
+            if isinstance(lock, LockType):
+                return lock
+        else:
+            if debug:
+                raise AttributeError(
+                    f"Instance of {target.__class__.__name__} do not have {lock_name} lock."
+                )
+            return None
+
+    def run_with_lock(func: Callable[Concatenate[Entities, P], Any]):
+        @wraps(func)
+        def inner(self: Entities, *args: P.args, **kwargs: P.kwargs) -> Any:
+            lock = has_lock(self, lock_name)
+            if lock is None:
+                return func(self, *args, **kwargs)
+            else:
+                with lock:
+                    return func(self, *args, **kwargs)
+
+        return inner
+
+    return run_with_lock
 
 
 class TickLogModel(BaseModel):
@@ -45,7 +99,7 @@ class Entity:
         self.__static_called_check: bool = False
         self.__static_init__()
         self.eid = eid
-        self.age = 0 
+        self.age = 0
         self.uuid: int = uuid.uuid4().int
         self.report_flag = False
 
@@ -85,38 +139,39 @@ class Entity:
         """Will do after _tick"""
         pass
 
+    @with_instance_lock("_tick_lock")
     def _tick(self, belong: Optional[Entity] = None) -> None:
         """Describe what a entity should do in a tick.
 
         Will auto call entity's every (suffix) _tick method.
         """
 
-        with self._tick_lock:
-            log = TickLogModel(
-                age=self.age,
-            )
-            try:
-                # Call every function named after _tick of class
-                for func in dir(
-                    self
-                ):  # dir() could show all instance method and properties;
-                    # __dict__ only returns properties.
-                    if len(func) > 5:  # not _tick itself
-                        if func[-5:] == "_tick":  # named after _tick
-                            target: Callable[[Optional[Entity]], None] = getattr(self, func)
-                            if callable(target):
-                                target(belong)
-                self._tick_last(belong)
-                log.status = RtnStatus.SUCCESS
+        log = TickLogModel(
+            age=self.age,
+        )
+        try:
+            # Call every function named after _tick of class
+            for func in dir(
+                self
+            ):  # dir() could show all instance method and properties;
+                # __dict__ only returns properties.
+                if len(func) > 5:  # not _tick itself
+                    if func[-5:] == "_tick":  # named after _tick
+                        target: Callable[[Optional[Entity]], None] = getattr(
+                            self, func
+                        )
+                        if callable(target):
+                            target(belong)
+            self._tick_last(belong)
+            log.status = RtnStatus.SUCCESS
 
-            except Exception as e:
-                log.exception(e)
-            finally:
-                self.last_tick_log = log
-                if self.log_flag:
-                    self.tick_log.append(log)
-                self.age += 1
-
+        except Exception as e:
+            log.exception(e)
+        finally:
+            self.last_tick_log = log
+            if self.log_flag:
+                self.tick_log.append(log)
+            self.age += 1
 
     def _report_tick(self, belong) -> None:
         """Report self, for logging or debugging usage."""

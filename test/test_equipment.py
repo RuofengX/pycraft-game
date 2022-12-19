@@ -42,17 +42,25 @@ class TestEquipBase(unittest.TestCase):
         self.ent._equip_add(eqp)
         assert self.ent.equip_list == [eqp]
 
+        ent2 = EquipTargetEntity()
+        assert not ent2._equip_add(eqp)
+        assert self.ent._equip_pop(eqp) == eqp
+        assert ent2._equip_add(eqp)
+
     def test_limit(self) -> None:
-        assert self.ent._equip_available_num(TestModule) == TestModule.limit_num
-        eqp = TestModule()
-        assert self.ent._equip_add(eqp)
-        assert self.ent._equip_available_num(TestModule) == TestModule.limit_num - 1
-        assert self.ent._equip_add(eqp)
-        assert self.ent._equip_available_num(TestModule) == TestModule.limit_num - 2
-        assert self.ent._equip_add(eqp)
-        assert self.ent._equip_available_num(TestModule) == TestModule.limit_num - 3
-        assert not self.ent._equip_add(eqp)
-        assert self.ent._equip_available_num(TestModule) == TestModule.limit_num - 3
+        assert self.ent._equip_available(TestModule) == TestModule.limit_num
+        eqp0 = TestModule()
+        eqp1 = TestModule()
+        eqp2 = TestModule()
+        eqp3 = TestModule()
+        assert self.ent._equip_add(eqp0)
+        assert self.ent._equip_available(TestModule) == TestModule.limit_num - 1
+        assert self.ent._equip_add(eqp1)
+        assert self.ent._equip_available(TestModule) == TestModule.limit_num - 2
+        assert self.ent._equip_add(eqp2)
+        assert self.ent._equip_available(TestModule) == TestModule.limit_num - 3
+        assert not self.ent._equip_add(eqp3)
+        assert self.ent._equip_available(TestModule) == TestModule.limit_num - 3
 
 
     def test_pop(self) -> None:
@@ -64,18 +72,19 @@ class TestEquipBase(unittest.TestCase):
     def test_get(self) -> None:
         eqp = TestModule()
         eqp_2 = TestModule()
-        assert self.ent._equip_add(eqp)
+        eqp_3 = TestModule()
         assert self.ent._equip_add(eqp)
         assert self.ent._equip_add(eqp_2)
+        assert self.ent._equip_add(eqp_3)
 
         assert self.ent._equip_get(TestModule) == eqp
         assert self.ent._equip_get('TestModule') == eqp
 
-        assert self.ent._equip_get(TestModule, 1) == eqp
-        assert self.ent._equip_get('TestModule', 1) == eqp
+        assert self.ent._equip_get(TestModule, 1) == eqp_2
+        assert self.ent._equip_get('TestModule', 1) == eqp_2
 
-        assert self.ent._equip_get(TestModule, 2) == eqp_2
-        assert self.ent._equip_get('TestModule', 2) == eqp_2
+        assert self.ent._equip_get(TestModule, 2) == eqp_3
+        assert self.ent._equip_get('TestModule', 2) == eqp_3
 
 class TestRadar(unittest.TestCase):
     class NoPosition(EquipmentMixin, Entity):

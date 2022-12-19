@@ -19,7 +19,7 @@ from typing import (
 )
 
 from pyworld.basic import Vector
-from pyworld.entity import ConcurrentMixin, Entities, Entity, FutureTick
+from pyworld.entity import ConcurrentMixin, Entities, Entity, FutureTick, with_instance_lock
 
 if TYPE_CHECKING:
     from pyworld.player import Player
@@ -123,10 +123,10 @@ class World(ConcurrentMixin, Entity):
         for ent in self.entity_dict.values():
             ent._tick(belong=self)
 
+    @with_instance_lock('_World__entity_count_lock')
     def _world_entity_plus(self) -> int:
         """will be called whenever an entity is created"""
-        with self.__entity_count_lock:
-            self.entity_count += 1
+        self.entity_count += 1
         return self.entity_count
 
     def world_new_entity(self, cls: Type[Entities], **kwargs) -> Entities:

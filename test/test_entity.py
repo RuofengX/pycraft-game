@@ -1,9 +1,10 @@
 import pickle
+from threading import Lock
 from typing import Optional
 
 import unittest
 
-from pyworld.entity import Entity
+from pyworld.entity import Entity, with_instance_lock
 
 
 class TEntity(Entity):
@@ -19,6 +20,40 @@ class TEntity(Entity):
     def _tick_last(self, belong: Optional[Entity] = None) -> None:
         self.tick_last_time += 1
         return super()._tick_last(belong)
+
+
+class TestLockDeco(unittest.TestCase):
+    class DecoTestEntity(Entity):
+        def __static_init__(self) -> None:
+            self._lock = Lock()
+            return super().__static_init__()
+
+        @with_instance_lock("_lock", debug=True)
+        def do_atom(self, t: int) -> int:
+            assert self._lock.locked()
+            return t
+
+    class NoLockEntity(Entity):
+        @with_instance_lock("_lock", debug=True)
+        def do_atom(self, t: int) -> int:
+            return t
+
+    def test_deco(self) -> None:
+        t_ent = self.DecoTestEntity()
+        assert t_ent.do_atom(1) == 1
+        assert t_ent.do_atom(1) == 1
+        assert t_ent.do_atom(1) == 1
+    
+    def test_no_deco(self) -> None:
+        t_ent = self.NoLockEntity()
+        pass_flag = False
+        try:
+            t_ent.do_atom(1)
+        except AttributeError:
+            pass_flag = True
+        finally:
+            assert pass_flag
+
 
 
 class TestEntity(unittest.TestCase):
