@@ -3,7 +3,6 @@ from __future__ import annotations
 import pickle
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
-from itertools import starmap
 from threading import Lock
 from typing import (
     Any,
@@ -47,7 +46,7 @@ class Entity:
         if not self.__static_called_check:
             raise SyntaxError("Some mixins' __static_init__ methods not call super()!")
 
-    def __static_init__(self):
+    def __static_init__(self) -> None:
         """Will be called when __init__ and loading from pickle bytes.
 
         All properties start with `_` will be delete when pickling,
@@ -182,9 +181,7 @@ class ConcurrentMixin(Entity):
         # Else, run every pending tick in pool
         with ThreadPoolExecutor(max_workers=16) as exe:
             future_list: list[Future[None]] = [
-                exe.submit(
-                    *tick, belong
-                ) for tick in self.__pending
+                exe.submit(*tick, belong) for tick in self.__pending
             ]
 
         self.__pending = []  # clear up

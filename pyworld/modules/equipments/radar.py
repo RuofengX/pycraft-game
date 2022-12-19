@@ -2,11 +2,11 @@ from dataclasses import dataclass, field
 from typing import ClassVar, List, Optional, Type, get_args
 
 from pyworld.modules.equipment import Equipment, EquipStatus
-from pyworld.world import Character, World
+from pyworld.world import Character, Positional, World
 
 
 @dataclass
-class Radar(Equipment[Character]):
+class Radar(Equipment[Positional]):
     required_module: ClassVar[Type[Character]] = Character
     radius: int = 0
     interval_tick: int = 100
@@ -14,10 +14,10 @@ class Radar(Equipment[Character]):
     scan_result: List[Character] = field(default_factory=list)
     last_update: int = -1
 
-    def set_scan_tick(self, interval: int):
+    def set_scan_tick(self, interval: int) -> None:
         self.interval_tick = interval
 
-    def toggle_auto_scan(self, target: Optional[bool] = None):
+    def toggle_auto_scan(self, target: Optional[bool] = None) -> None:
         """Toggle radio auto_scan
         If target: bool is given, set auto_scan to target status
         """
@@ -26,7 +26,7 @@ class Radar(Equipment[Character]):
         else:
             self.auto_scan = target
 
-    def _tick(self, o: Character, w: World):
+    def _tick(self, o: Character, w: World) -> None:
         super()._tick(o, w)
         if self.status == EquipStatus.FINE:  # o is Character
             if self.auto_scan:
@@ -36,5 +36,3 @@ class Radar(Equipment[Character]):
                     )
                     self.last_update = w.age
 
-
-print(get_args(Radar))
