@@ -7,8 +7,8 @@ from pyworld.entity import Entity
 
 
 class TEntity(Entity):
-    def __init__(self, eid: int = -1):
-        super().__init__(eid)
+    def __init__(self) -> None:
+        super().__init__(eid=-1)
         self.tick_times = 0
         self.tick_last_time = 0
 
@@ -22,15 +22,15 @@ class TEntity(Entity):
 
 
 class TestEntity(unittest.TestCase):
-    def setUp(self):
-        self.ent = Entity(1)
-        self.t_entity = TEntity(2)
+    def setUp(self) -> None:
+        self.ent = Entity()
+        self.t_entity = TEntity()
 
-    def test_properties(self):
+    def test_properties(self) -> None:
         ent = self.ent
         assert all(
             (
-                ent.eid == 1,
+                ent.eid == -1,
                 ent.age == 0,
                 isinstance(ent.uuid, int),
                 not ent.report_flag,
@@ -38,7 +38,7 @@ class TestEntity(unittest.TestCase):
             )
         )
 
-    def test_tick(self):
+    def test_tick(self) -> None:
         self.ent._tick()
         self.t_entity._tick()
         assert self.ent.age == 1
@@ -47,16 +47,13 @@ class TestEntity(unittest.TestCase):
             self.t_entity._tick()
         assert self.t_entity.tick_times == 11
 
-    def test_tick_last(self):
+    def test_tick_last(self) -> None:
         self.t_entity._tick()
         assert self.t_entity.tick_last_time == 1
 
 class TestPickleSystem(TestEntity):
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
         pickle_b = pickle.dumps(self.ent)
         self.ent = pickle.loads(pickle_b)
-        
-    
-
         # TODO

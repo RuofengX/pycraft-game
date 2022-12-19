@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Generic, Optional, Protocol, Type, TypeVar, Dict, List
+from threading import Lock
+from typing import TYPE_CHECKING, Generic, Optional, Protocol, Type, TypeVar, Dict, List, cast
 from pyworld.control import ControlMixin
 
 from pyworld.entity import Checkable, Entity
@@ -9,16 +10,18 @@ from pyworld.world import World
 class EquipStatus(Enum):
     INIT = "Equipment initiating."
     NOT_CHECK = "Still not checking."
-    FAIL = "Some check not pass. Equipment may not work."
-    FINE = "Equipment running fine."
+    CHECK_FAIL = "Some check not pass. Equipment may not work."
+    CHECK_PASS = "Equipment running fine."
+    WORKING = "Equipment works fine."
+    ERROR = "Equipment works into wrong."
     UPDATING = "Equipment info updating."
 
 
-Requirement = TypeVar("Requirement", bound=Protocol)
+Requirement = TypeVar("Requirement")
 
 
 class Equipment(Generic[Requirement], ControlMixin, Entity):
-    require_module: Type[Requirement]
+    require_module: Optional[Type[Requirement]] = None
     limit_num: int = 1
 
     def __init__(self) -> None:
@@ -27,36 +30,45 @@ class Equipment(Generic[Requirement], ControlMixin, Entity):
         self.belong: Optional[Entity] = None
         self.status = EquipStatus.NOT_CHECK
 
-    def check_require(self, ent: Entity) -> bool:
-        """
-        Check input entity is satisfy for
-        self.require_module
-        """
-
-        return isinstance(ent, self.require_module)
-
     def _on_equip(self, belong: Entity) -> None:
-        if self.check_require(ent=belong):
-            self.status = EquipStatus.FINE
+        if self._check_require(belong):
+            self.status = EquipStatus.CHECK_PASS
         else:
-            self.status = EquipStatus.FAIL
+            self.status = EquipStatus.CHECK_FAIL
         self.belong = belong
 
     def _on_unequip(self) -> None:
         self.status = EquipStatus.NOT_CHECK
         self.belong = None
 
+    def _check_require(self, belong: Entity) -> bool:
+        """
+        Check input entity is satisfy for
+        self.require_module
+        """
+        if self.require_module is None:
+            return True
+
+        return isinstance(belong, self.require_module)
+
     def _tick(self, o: Entity, w: World) -> None:
-        super()._tick(belong=w)
+        super()._tick(o)
+
+
+Equipments = TypeVar(name="Equipments", bound=Equipment)
 
 
 class EquipmentMixin(Entity):
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.equip_list: List[Equipment] = []
-        self.equip_ensure_require: bool = True
+    
+    def __static_init__(self) -> None:
+        self.__equip_list_lock = Lock()
+        return super().__static_init__()
 
-    def __get_stack(self, equip: str | Equipment | Type[Equipment]) -> List[Equipment]:
+    def __get_stack(self, equip: str | Equipments | Type[Equipments]) -> List[Equipments]:
         """
         Return the list of equips in self.equip_list
         with given name/instance/type.
@@ -79,15 +91,25 @@ class EquipmentMixin(Entity):
         """Return the number of equips in list with given name/instance/type."""
         return len(self.__get_stack(equip))
 
-    def _equip_available_num(self, equip: Equipment) -> int:
+    def _equip_available_num(self, equip: Equipment | Type[Equipment]) -> int:
         """Return the number of equips that this Entity could add."""
         count = self.__get_num(equip)
         return equip.limit_num - count
 
-    def _equip_check_limit(self, equip: Equipment) -> bool:
+    def _equip_check_limit(self, equip: Equipment | Type[Equipment]) -> bool:
         """Check whether self statisfy the input equip's num_limit."""
-        rtn = self._equip_available_num(equip)
-        return rtn >= 0
+        available = self._equip_available_num(equip)
+        return available > 0
+
+    def _equip_check_unique(self, equip: Equipment) -> bool:
+        """Check whether self.equip_list already the same equip."""
+        stack = self.__get_stack(equip)
+        if stack == []:
+            return True
+        for each in stack:
+            if each == equip:
+                return False
+        return True
 
     def _equip_add(self, equip: Equipment) -> bool:
         """
@@ -95,19 +117,21 @@ class EquipmentMixin(Entity):
 
         Respect to limit_num defined in Equipment subclass
         """
-
-        if not self._equip_check_limit(equip):
-            return False
-
-        if self.equip_ensure_require:
-            if not equip.check_require(self):
+        with self.__equip_list_lock:
+            if not self._equip_check_limit(equip):
                 return False
 
-        self.equip_list.append(equip)
-        equip._on_equip(self)
-        return True
+            if not equip._check_require(self):
+                return False
 
-    def _equip_pop(self, name: str, index: Optional[int] = None) -> Optional[Equipment]:
+            if not self._equip_check_unique(equip):
+                return False
+
+            self.equip_list.append(equip)
+            equip._on_equip(self)
+            return True
+
+    def _equip_pop(self, target: str | Equipments | Type[Equipments], index: int = 0) -> Optional[Equipments]:
         """
         Pop the equipment obj.
 
@@ -115,22 +139,30 @@ class EquipmentMixin(Entity):
         index is for values in self.equip_dict, default is 0
         """
 
-        stack = self.__get_stack(name)
-        if len(stack) == 0:
-            return None
+        with self.__equip_list_lock:
 
-        if index is None:
-            index = 0
-        rtn = stack.pop(index)
+            stack: List[Equipments] = self.__get_stack(target)
+            if len(stack) == 0:
+                return None
 
-        rtn._on_unequip()
-        return rtn
+            target_id = stack[index].uuid
+            for i in range(len(self.equip_list)):
+                if self.equip_list[i].uuid == target_id:
+                    rtn = self.equip_list.pop(i)
+                    rtn._on_unequip()
+                    return cast(Equipments, rtn)
+
+    def _equip_get(self, target: str | Type[Equipments], index: int = 0) -> Optional[Equipments]:
+        with self.__equip_list_lock:
+            stack = self.__get_stack(target)
+            if len(stack) == 0:
+                return None
+            return stack[index]
 
     def _equip_tick(self, belong: World) -> None:
         for each in self.equip_list:
 
-            if self.equip_ensure_require:
-                if not each.check_require(self):
-                    continue
+            if not each._check_require(self):
+                continue
 
             each._tick(o=self, w=belong)

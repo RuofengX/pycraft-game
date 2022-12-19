@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import base64
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 
-from pyworld.entity import Entity
+if TYPE_CHECKING:
+    from pyworld.entity import Entity
 
 Detail = Dict[str, Any] | str
 
@@ -24,6 +25,9 @@ class ExceptionModel(BaseModel):
             exception_name=e.__class__.__name__,
             exception_detail=str(e),
         )
+
+
+
 
 
 class RequestModel(BaseModel):
@@ -49,7 +53,7 @@ class ResultModel(BaseModel):
 
     """
 
-    stage: str = 'UNKNOWN'
+    stage: str = "UNKNOWN"
     status: RtnStatus = RtnStatus.NOT_SET
     detail: Detail = ""
     exception: Optional[ExceptionModel] = None
