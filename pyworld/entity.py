@@ -3,6 +3,7 @@ from __future__ import annotations
 import pickle
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
+from itertools import starmap
 from threading import Lock
 from typing import (
     Any,
@@ -63,10 +64,10 @@ class Entity:
         self.__static_called_check = True
 
     def __eq__(self, other):
-        if isinstance(other, Entity):
-            return self.uuid == other.uuid
-        else:
+        if not isinstance(other, Entity):
             return False
+
+        return self.uuid == other.uuid
 
     def __hash__(self) -> int:
         return self.uuid
@@ -128,7 +129,8 @@ class Entity:
         for key in status.keys():
             if key[0] == "_":
                 pop_list.append(key)
-        map(status.pop, pop_list)
+        for key in pop_list:
+            status.pop(key)
         return status
 
     def __setstate__(self, state: Dict[str, Any]) -> None:
