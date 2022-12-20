@@ -35,7 +35,7 @@ class RequestModel(BaseModel):
     kwargs: Dict[str, Any]
 
 
-class RtnStatus(Enum):
+class CallStatus(Enum):
     NOT_SET = "<Not_set>"
     FAIL = "Fail"
     WARNING = "Warning"
@@ -54,27 +54,27 @@ class ResultModel(BaseModel):
     """
 
     stage: str = "UNKNOWN"
-    status: RtnStatus = RtnStatus.NOT_SET
+    status: CallStatus = CallStatus.NOT_SET
     detail: Detail = ""
     exception: Optional[ExceptionModel] = None
 
     def fail(self, detail: Detail, e: Optional[Exception] = None) -> str:
         """Create a fatal respond with detail=message."""
-        self.status = RtnStatus.FAIL
+        self.status = CallStatus.FAIL
         self.detail = detail
         self.exception = ExceptionModel.from_exception(e)
         return self.to_json()
 
     def warning(self, message: Detail, e: Optional[Exception] = None) -> str:
         """Create a warning respond with detail=message."""
-        self.status = RtnStatus.WARNING
+        self.status = CallStatus.WARNING
         self.detail = message
         self.exception = ExceptionModel.from_exception(e)
         return self.to_json()
 
     def success(self, message: str | Detail) -> str:
         """Create a success respond with detail=message."""
-        self.status = RtnStatus.SUCCESS
+        self.status = CallStatus.SUCCESS
         self.detail = message
         return self.to_json()
 
@@ -85,7 +85,7 @@ class ResultModel(BaseModel):
         return self.json()
 
 
-class ServerRtn(ResultModel):
+class ServerReturnModel(ResultModel):
     """
     Easy way to create json response.
 
@@ -101,7 +101,7 @@ class ServerRtn(ResultModel):
         """
 
         obj_pickle_base64 = base64.b64encode(entity.get_state_b())
-        self.status = RtnStatus.SUCCESS
+        self.status = CallStatus.SUCCESS
         self.detail = {
             "dict": entity.get_state(),
             "obj_pickle_base64": str(obj_pickle_base64),

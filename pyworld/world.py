@@ -1,4 +1,5 @@
 from __future__ import annotations
+from itertools import repeat
 
 import time
 from functools import wraps
@@ -15,11 +16,18 @@ from typing import (
     Type,
     TypeGuard,
     cast,
+    reveal_type,
     runtime_checkable,
 )
 
 from pyworld.basic import Vector
-from pyworld.entity import ConcurrentMixin, Entities, Entity, FutureTick, with_instance_lock
+from pyworld.entity import (
+    ConcurrentMixin,
+    Entities,
+    Entity,
+    FutureTick,
+    with_instance_lock,
+)
 
 if TYPE_CHECKING:
     from pyworld.player import Player
@@ -117,13 +125,14 @@ class World(ConcurrentMixin, Entity):
     def __static_init__(self) -> None:
         super().__static_init__()
         self.__entity_count_lock = Lock()
+        self.__entity_dict_lock = Lock()
 
     def _world_tick(self, belong: Literal[None] = None) -> None:
         time.sleep(0.1)
         for ent in self.entity_dict.values():
             ent._tick(belong=self)
 
-    @with_instance_lock('_World__entity_count_lock')
+    @with_instance_lock("_World__entity_count_lock")
     def _world_entity_plus(self) -> int:
         """will be called whenever an entity is created"""
         self.entity_count += 1
@@ -138,11 +147,13 @@ class World(ConcurrentMixin, Entity):
         first argument of cls build method.
         """
 
-        eid = self._world_entity_plus()
-        new_e: Entities = cls(eid=eid, **kwargs)
-        self.entity_dict[eid] = new_e
-        return new_e
+        with self.__entity_dict_lock:  # Use @with_instance_lock here will broke generic system.
+            eid = self._world_entity_plus()
+            new_e: Entities = cls(eid=eid, **kwargs)
+            self.entity_dict[eid] = new_e
+            return new_e
 
+    @with_instance_lock("_World__entity_dict_lock")
     def world_get_entity_index(self, ent: Entity) -> Optional[int]:
         for item in self.entity_dict.items():
             k, v = item
@@ -150,85 +161,95 @@ class World(ConcurrentMixin, Entity):
                 return k
         return None
 
+    @with_instance_lock("_World__entity_dict_lock")
     def world_get_entity(self, eid: int) -> Optional[Entity]:
         if eid in self.entity_dict.keys():
             return self.entity_dict[eid]
         else:
             return None
 
+    @with_instance_lock("_World__entity_dict_lock")
     def world_del_entity(self, eid: int) -> None:
         if eid in self.entity_dict.keys():
             self.entity_dict.pop(eid)
 
+    @with_instance_lock("_World__entity_dict_lock")
     def world_get_nearby_entity(
-        self, char: Character, radius: float
-    ) -> List[Character]:
+        self, target: int | Entity, radius: float
+    ) -> List[Entity]:
         """Return character instances list near the position"""
-        rtn: List[Character] = []
 
-        for ent in self.entity_dict.values():
-            if Character.check(ent):
-                if ent != char:  # Pass char itself
-                    dis: float | None = self.world_get_natural_distance(char, ent)
-                    if dis is not None:
-                        if dis - radius < 0:
-                            rtn.append(ent)
+        rtn: List[Entity] = []
+
+        valid_entity: Optional[Entity] = self.__valid_entity_input(target)
+        valid_target = self.__valid_positional_input(valid_entity)
+        if valid_target is None:
+            return rtn
+
+        for ent in self:
+            if isinstance(ent, Positional):
+                if ent != valid_target:  # Pass char itself
+                    dis: float = self._get_natural_distance(ent, valid_target)
+                    if dis - radius < 0:
+                        rtn.append(ent)
         return rtn
 
+    @with_instance_lock("_World__entity_dict_lock")
     def world_entity_exists(self, ent: Entity) -> bool:
         return ent in self.entity_dict.values()
 
-    def __valid_entity_input(self, source: Entity | int) -> Optional[Entity]:
+    def __valid_entity_input(self, source: int | Entity) -> Optional[Entity]:
+        """
+        Input an int(index) or an obj,
+        function will guess if the related-entity is in self, return the entity.
+        else, return None.
+        """
+
         if isinstance(source, int):
 
             if source not in self.entity_dict:
                 return None
 
             return self.entity_dict[source]
+
         else:
-            if not self.world_entity_exists(source):
+
+            if not isinstance(source, Entity):
+                return None
+
+            if source not in self:
                 return None
 
             return source
 
+    @staticmethod
+    def __valid_positional_input(source: Any) -> Optional[Positional]:
+        if isinstance(source, Positional):
+            return source
+        return None
+
+    @staticmethod
+    def _get_natural_distance(target1: Positional, target2: Positional):
+        p1: Vector = target1.position
+        p2: Vector = target2.position
+        dis: float = (p1 - p2).length()
+        return dis
+
+    @with_instance_lock("_World__entity_dict_lock")
     def world_get_natural_distance(
         self, target1: Entity | int, target2: Entity | int
     ) -> Optional[float]:
-        """Return the natural distance between char1 and char2.
+        """Return the natural distance between target1 and target2.
         Return None, if any of character provided not exists."""
 
         valid1, valid2 = map(self.__valid_entity_input, (target1, target2))
-
+        valid1, valid2 = map(self.__valid_positional_input, (valid1, valid2))
         if (valid1 is None) or (valid2 is None):
             return None
+        return self._get_natural_distance(valid1, valid2)
 
-        if isinstance(valid1, Positional) and isinstance(valid2, Positional):
-            p1: Vector = valid1.position
-            p2: Vector = valid2.position
-            dis: float = (p1 - p2).length()
-            return dis
-
-        return None
-
-    def world_get_lineal_distance(
-        self, target1: Character | int, target2: Character | int
-    ) -> Optional[float]:
-        """Return the distance but in sum(delta x, y, z) like,
-        (I call it lineal distance)
-        Return None, if any of character provided not exists."""
-
-        valid1, valid2 = map(self.__valid_entity_input, (target1, target2))
-
-        if (valid1 is None) or (valid2 is None):
-            return None
-
-        if isinstance(valid1, Positional) and isinstance(valid2, Positional):
-            p1 = valid1.position
-            p2 = valid2.position
-            dis = abs(p1.x - p2.x) + abs(p1.y - p2.y) + abs(p1.z - p2.z)
-            return dis
-
-        return None
+    def __iter__(self):
+        return self.entity_dict.values().__iter__()
 
 
 class Continuum(Thread):

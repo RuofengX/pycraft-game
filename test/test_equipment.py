@@ -1,3 +1,4 @@
+from typing import cast
 import unittest
 
 from pyworld.basic import Vector
@@ -102,10 +103,10 @@ class TestRadar(unittest.TestCase):
         self.position = self.ct.world.world_new_entity(
             cls=self.Position, pos=Vector(0, 0, 0)
         )
-        for i in range(10):
-            setattr(self, f'position{i}', self.ct.world.world_new_entity(
-                cls=self.Position, pos=Vector(0, i, 0)
-            ))
+        self.position0 = self.ct.world.world_new_entity(cls=self.Position, pos=Vector(0, 0, 0))
+        self.position1 = self.ct.world.world_new_entity(cls=self.Position, pos=Vector(0, 0, 1))
+        self.position2 = self.ct.world.world_new_entity(cls=self.Position, pos=Vector(0, 0, 2))
+        self.position3 = self.ct.world.world_new_entity(cls=self.Position, pos=Vector(0, 0, 3))
     
     def test_require(self) -> None:
         assert not self.no_position._equip_add(self.radar)
@@ -122,5 +123,7 @@ class TestRadar(unittest.TestCase):
         self.radar.set_scan_tick(1)
         self.radar.radius = 0
         assert self.position._equip_add(self.radar)
+        assert self.position.equip_list == [self.radar]
         self.ct.world._tick()
-        
+        radar = cast(Radar, self.position._equip_get(Radar))
+        assert radar.scan_result == [self.position0]  # FIXME: radar.interval_tick is incorrect.

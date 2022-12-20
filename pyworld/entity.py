@@ -26,8 +26,9 @@ from typing import (
 from objprint import op
 from pydantic import BaseModel
 
-from pyworld.datamodels.function_call import ExceptionModel, RtnStatus
+from pyworld.datamodels.function_call import ExceptionModel, CallStatus
 
+Self_Entity = TypeVar("Self_Entity", bound="Entity")
 T = TypeVar("T")
 P = ParamSpec("P")
 
@@ -53,9 +54,9 @@ def with_instance_lock(lock_name: str, debug: bool = False):
                 )
             return None
 
-    def run_with_lock(func: Callable[Concatenate[Entities, P], Any]):
+    def run_with_lock(func: Callable[Concatenate[Self_Entity, P], Any]):
         @wraps(func)
-        def inner(self: Entities, *args: P.args, **kwargs: P.kwargs) -> Any:
+        def inner(self: Self_Entity, *args: P.args, **kwargs: P.kwargs) -> Any:
             lock = has_lock(self, lock_name)
             if lock is None:
                 return func(self, *args, **kwargs)
@@ -70,15 +71,15 @@ def with_instance_lock(lock_name: str, debug: bool = False):
 
 class TickLogModel(BaseModel):
     age: int
-    status: RtnStatus = RtnStatus.NOT_SET
+    status: CallStatus = CallStatus.NOT_SET
     exception_info: Optional[ExceptionModel] = None
 
     def exception(self, e: Exception) -> None:
-        self.status = RtnStatus.FAIL
+        self.status = CallStatus.FAIL
         self.exception_info = ExceptionModel.from_exception(e)
 
     def success(self) -> None:
-        self.status = RtnStatus.SUCCESS
+        self.status = CallStatus.SUCCESS
 
 
 class Entity:
@@ -157,13 +158,11 @@ class Entity:
                 # __dict__ only returns properties.
                 if len(func) > 5:  # not _tick itself
                     if func[-5:] == "_tick":  # named after _tick
-                        target: Callable[[Optional[Entity]], None] = getattr(
-                            self, func
-                        )
+                        target: Callable[[Optional[Entity]], None] = getattr(self, func)
                         if callable(target):
                             target(belong)
             self._tick_last(belong)
-            log.status = RtnStatus.SUCCESS
+            log.status = CallStatus.SUCCESS
 
         except Exception as e:
             log.exception(e)

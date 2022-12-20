@@ -43,7 +43,7 @@ class TestLockDeco(unittest.TestCase):
         assert t_ent.do_atom(1) == 1
         assert t_ent.do_atom(1) == 1
         assert t_ent.do_atom(1) == 1
-    
+
     def test_no_deco(self) -> None:
         t_ent = self.NoLockEntity()
         pass_flag = False
@@ -53,7 +53,6 @@ class TestLockDeco(unittest.TestCase):
             pass_flag = True
         finally:
             assert pass_flag
-
 
 
 class TestEntity(unittest.TestCase):
@@ -85,6 +84,7 @@ class TestEntity(unittest.TestCase):
     def test_tick_last(self) -> None:
         self.t_entity._tick()
         assert self.t_entity.tick_last_time == 1
+
 
 class TestPickleSystem(TestEntity):
     def setUp(self) -> None:

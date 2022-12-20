@@ -1,6 +1,16 @@
 from enum import Enum
 from threading import Lock
-from typing import TYPE_CHECKING, Generic, Optional, Protocol, Type, TypeVar, Dict, List, cast
+from typing import (
+    TYPE_CHECKING,
+    Generic,
+    Optional,
+    Protocol,
+    Type,
+    TypeVar,
+    Dict,
+    List,
+    cast,
+)
 from pyworld.control import ControlMixin
 
 from pyworld.entity import Checkable, Entity, with_instance_lock
@@ -59,16 +69,17 @@ Equipments = TypeVar(name="Equipments", bound=Equipment)
 
 
 class EquipmentMixin(Entity):
-
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.equip_list: List[Equipment] = []
-    
+
     def __static_init__(self) -> None:
         self.__equip_list_lock = Lock()
         return super().__static_init__()
 
-    def __get_stack(self, equip: str | Equipments | Type[Equipments]) -> List[Equipments]:
+    def __get_stack(
+        self, equip: str | Equipments | Type[Equipments]
+    ) -> List[Equipments]:
         """
         Return the list of equips in self.equip_list
         with given name/instance/type.
@@ -111,11 +122,11 @@ class EquipmentMixin(Entity):
                 return False
         return True
 
-    @with_instance_lock('_EquipmentMixin__equip_list_lock')
+    @with_instance_lock("_EquipmentMixin__equip_list_lock")
     def _equip_available(self, equip: Equipment | Type[Equipment]) -> int:
         return self.__equip_available_num(equip)
 
-    @with_instance_lock('_EquipmentMixin__equip_list_lock')
+    @with_instance_lock("_EquipmentMixin__equip_list_lock")
     def _equip_add(self, equip: Equipment) -> bool:
         """
         Add new equip to self
@@ -139,8 +150,10 @@ class EquipmentMixin(Entity):
         equip._on_equip(self)
         return True
 
-    @with_instance_lock('_EquipmentMixin__equip_list_lock')
-    def _equip_pop(self, target: str | Equipment | Type[Equipment], index: int = 0) -> Optional[Equipment]:
+    @with_instance_lock("_EquipmentMixin__equip_list_lock")
+    def _equip_pop(
+        self, target: str | Equipment | Type[Equipment], index: int = 0
+    ) -> Optional[Equipment]:
         """
         Pop the equipment obj.
 
@@ -158,8 +171,10 @@ class EquipmentMixin(Entity):
                 rtn._on_unequip()
                 return cast(Equipments, rtn)
 
-    @with_instance_lock('_EquipmentMixin__equip_list_lock')
-    def _equip_get(self, target: str | Type[Equipment], index: int = 0) -> Optional[Equipment]:
+    @with_instance_lock("_EquipmentMixin__equip_list_lock")
+    def _equip_get(
+        self, target: str | Type[Equipment], index: int = 0
+    ) -> Optional[Equipment]:
         stack = self.__get_stack(target)
         if len(stack) == 0:
             return None

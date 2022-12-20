@@ -51,6 +51,31 @@ class TestWorld(unittest.TestCase):
     def test_new_character(self) -> None:
         assert self.test_ent is self.ct.world.entity_dict[1]
 
+    def test_iter(self) -> None:
+        ent_list = [
+            self.test_ent,
+            self.char1,
+            self.char2,
+            self.char3,
+            self.char4,
+            self.char5,
+        ]
+        for i in self.ct.world:
+            assert i in ent_list
+
+    def test_in(self) -> None:
+        ent_list = [
+            self.test_ent,
+            self.char1,
+            self.char2,
+            self.char3,
+            self.char4,
+            self.char5,
+        ]
+        for i in ent_list:
+            assert i in self.ct.world
+        assert Entity() not in self.ct.world
+
     def test_get_entity_index(self) -> None:
         assert self.ct.world.world_get_entity_index(self.test_ent) == 1
 
@@ -117,11 +142,6 @@ class TestWorld(unittest.TestCase):
         char7 = self.ct.world.world_new_entity(Character, pos=Vector(12, 0, 5))
         assert self.ct.world.world_get_natural_distance(self.char1, char6) == 5
         assert self.ct.world.world_get_natural_distance(self.char1, char7) == 13
-
-    def test_get_lineal_distance(self) -> None:
-        assert self.ct.world.world_get_lineal_distance(self.char1, self.char2) == 1
-        char3 = self.ct.world.world_new_entity(Character, pos=Vector(0, 10, 100))
-        assert self.ct.world.world_get_lineal_distance(self.char1, char3) == 110
 
 
 class TestCharacter(unittest.TestCase):

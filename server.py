@@ -3,7 +3,7 @@ import asyncio as aio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from game import Core
-from pyworld.datamodels.function_call import RequestModel, ResultModel, ServerRtn
+from pyworld.datamodels.function_call import RequestModel, ResultModel, ServerReturnModel
 from pyworld.datamodels.property_cache import PropertyCache
 from pyworld.datamodels.websockets import WSCommand, WSPayload, WSStage
 from pyworld.player import Player
@@ -27,19 +27,19 @@ async def shutdown_event():
 async def player_get_info(username: str, passwd: str):
     """Get player info."""
 
-    rtn = ServerRtn()
+    rtn = ServerReturnModel()
     if not core.check_login(username, passwd):
         return rtn.passwd_check_fail()
 
     p = core.player_dict[username]
 
-    return ServerRtn().entity(p)
+    return ServerReturnModel().entity(p)
 
 
 @app.get(path="/register")
 async def register(username: str, passwd: str):
     """Register new player."""
-    rtn = ServerRtn()
+    rtn = ServerReturnModel()
 
     if username in core.player_dict:
         return rtn.name_already_used()
@@ -51,7 +51,7 @@ async def register(username: str, passwd: str):
 @app.get(path="/ctrl/get-method")
 async def ctrl_get_method(username: str, passwd: str):
     """Get all controllable methods names and docs."""
-    rtn = ServerRtn()
+    rtn = ServerReturnModel()
 
     if not core.check_login(username, passwd):
         return rtn.passwd_check_fail()
@@ -65,7 +65,7 @@ async def ctrl_get_method(username: str, passwd: str):
 async def ctrl_get_properties(username: str, passwd: str):
     """Get all controllable properties."""
 
-    rtn = ServerRtn()
+    rtn = ServerReturnModel()
 
     if not core.check_login(username, passwd):
         return rtn.passwd_check_fail()
@@ -77,7 +77,7 @@ async def ctrl_get_properties(username: str, passwd: str):
 
 @app.post(path="/ctrl/call")
 async def ctrl_call(*, username: str, passwd: str, body: RequestModel):
-    rtn = ServerRtn()
+    rtn = ServerReturnModel()
 
     if not core.check_login(username, passwd):
         rtn.passwd_check_fail()
