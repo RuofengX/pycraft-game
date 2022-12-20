@@ -35,7 +35,7 @@ class Radar(Equipment[Positional]):
             if self.auto_scan:
                 if o.age % self.interval_tick == 0:  # use the interval
                     self.scan_result = w.world_get_nearby_entity(
-                        char=o, radius=self.radius
+                        o, radius=self.radius
                     )
                     self.last_update = w.age
 

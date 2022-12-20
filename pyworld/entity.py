@@ -102,9 +102,7 @@ class Entity:
         self.eid = eid
         self.age = 0
         self.uuid: int = uuid.uuid4().int
-        self._report_flag = False
 
-        self.log_flag = False
         self.tick_log: List[TickLogModel] = []
         self.last_tick_log: Optional[TickLogModel] = None
 
@@ -125,7 +123,9 @@ class Entity:
         Very useful for those property that cannot be pickled."""
 
         self._tick_lock = Lock()  # Lock when entity is ticking.
-        self.__static_called_check = True
+        self._report_flag = False  # Control whether show a message about self in console.
+        self._log_flag = False  # Control whether write log into self.tick_log
+        self.__static_called_check = True  # True means all __static_init__ in mro call their super.
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Entity):
@@ -168,7 +168,7 @@ class Entity:
             log.exception(e)
         finally:
             self.last_tick_log = log
-            if self.log_flag:
+            if self._log_flag:
                 self.tick_log.append(log)
             self.age += 1
 

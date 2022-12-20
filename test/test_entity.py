@@ -67,7 +67,7 @@ class TestEntity(unittest.TestCase):
                 ent.eid == -1,
                 ent.age == 0,
                 isinstance(ent.uuid, int),
-                not ent.report_flag,
+                not ent._report_flag,
                 hasattr(ent, "_tick_lock"),
             )
         )
