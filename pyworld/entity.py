@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import pickle
 import uuid
+from _thread import LockType
 from concurrent.futures import Future, ThreadPoolExecutor
+from functools import wraps
 from threading import Lock
 from typing import (
     Any,
     Callable,
+    Concatenate,
     Dict,
     List,
     Optional,
+    ParamSpec,
     Protocol,
     Self,
     Tuple,
@@ -20,10 +24,67 @@ from typing import (
 )
 
 from objprint import op
+from pydantic import BaseModel
+
+from pyworld.datamodels.function_call import ExceptionModel, CallStatus
+
+Self_Entity = TypeVar("Self_Entity", bound="Entity")
+T = TypeVar("T")
+P = ParamSpec("P")
+
+
+def with_instance_lock(lock_name: str, debug: bool = False):
+    """
+    Used in Entity's method define, return a decorate:
+
+    The raw func's first args must be Entities type.
+    Will auto require the instance's lock by given name, then run the raw func.
+
+    """
+
+    def has_lock(target: Entity, lock_name: str) -> Optional[LockType]:
+        if hasattr(target, lock_name):
+            lock = getattr(target, lock_name)
+            if isinstance(lock, LockType):
+                return lock
+        else:
+            if debug:
+                raise AttributeError(
+                    f"Instance of {target.__class__.__name__} do not have {lock_name} lock."
+                )
+            return None
+
+    def run_with_lock(func: Callable[Concatenate[Self_Entity, P], Any]):
+        @wraps(func)
+        def inner(self: Self_Entity, *args: P.args, **kwargs: P.kwargs) -> Any:
+            lock = has_lock(self, lock_name)
+            if lock is None:
+                return func(self, *args, **kwargs)
+            else:
+                with lock:
+                    return func(self, *args, **kwargs)
+
+        return inner
+
+    return run_with_lock
+
+
+class TickLogModel(BaseModel):
+    age: int
+    status: CallStatus = CallStatus.NOT_SET
+    exception_info: Optional[ExceptionModel] = None
+
+    def exception(self, e: Exception) -> None:
+        self.status = CallStatus.FAIL
+        self.exception_info = ExceptionModel.from_exception(e)
+
+    def success(self) -> None:
+        self.status = CallStatus.SUCCESS
 
 
 class Entity:
-    """Being
+    """
+    Being
 
     An entity of a world should only be created by World.create_entity() method.
     Because an eid should be taken to create an entity.
@@ -34,19 +95,21 @@ class Entity:
         Character
     """
 
-    def __init__(self, eid: int = -1):
+    def __init__(self, *, eid: int = -1) -> None:
         """Entity only accept kwargs arguments."""
         self.__static_called_check: bool = False
         self.__static_init__()
         self.eid = eid
         self.age = 0
         self.uuid: int = uuid.uuid4().int
-        self.report_flag = False
+
+        self.tick_log: List[TickLogModel] = []
+        self.last_tick_log: Optional[TickLogModel] = None
 
         if not self.__static_called_check:
             raise SyntaxError("Some mixins' __static_init__ methods not call super()!")
 
-    def __static_init__(self):
+    def __static_init__(self) -> None:
         """Will be called when __init__ and loading from pickle bytes.
 
         All properties start with `_` will be delete when pickling,
@@ -60,13 +123,15 @@ class Entity:
         Very useful for those property that cannot be pickled."""
 
         self._tick_lock = Lock()  # Lock when entity is ticking.
-        self.__static_called_check = True
+        self._report_flag = False  # Control whether show a message about self in console.
+        self._log_flag = False  # Control whether write log into self.tick_log
+        self.__static_called_check = True  # True means all __static_init__ in mro call their super.
 
-    def __eq__(self, other):
-        if isinstance(other, Entity):
-            return self.uuid == other.uuid
-        else:
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Entity):
             return False
+
+        return self.uuid == other.uuid
 
     def __hash__(self) -> int:
         return self.uuid
@@ -75,17 +140,17 @@ class Entity:
         """Will do after _tick"""
         pass
 
+    @with_instance_lock("_tick_lock")
     def _tick(self, belong: Optional[Entity] = None) -> None:
         """Describe what a entity should do in a tick.
 
         Will auto call entity's every (suffix) _tick method.
         """
 
-        with self._tick_lock:
-            self.age += 1
-            if self.report_flag:
-                self._report()
-
+        log = TickLogModel(
+            age=self.age,
+        )
+        try:
             # Call every function named after _tick of class
             for func in dir(
                 self
@@ -96,11 +161,21 @@ class Entity:
                         target: Callable[[Optional[Entity]], None] = getattr(self, func)
                         if callable(target):
                             target(belong)
-
             self._tick_last(belong)
+            log.status = CallStatus.SUCCESS
 
-    def _report(self) -> None:
+        except Exception as e:
+            log.exception(e)
+        finally:
+            self.last_tick_log = log
+            if self._log_flag:
+                self.tick_log.append(log)
+            self.age += 1
+
+    def _report_tick(self, belong) -> None:
         """Report self, for logging or debugging usage."""
+        if not self._report_flag:
+            return
         if self.age % 20 == 0:
             op(self.__dict__)
 
@@ -128,7 +203,8 @@ class Entity:
         for key in status.keys():
             if key[0] == "_":
                 pop_list.append(key)
-        map(status.pop, pop_list)
+        for key in pop_list:
+            status.pop(key)
         return status
 
     def __setstate__(self, state: Dict[str, Any]) -> None:
@@ -180,9 +256,7 @@ class ConcurrentMixin(Entity):
         # Else, run every pending tick in pool
         with ThreadPoolExecutor(max_workers=16) as exe:
             future_list: list[Future[None]] = [
-                exe.submit(
-                    *tick, belong
-                ) for tick in self.__pending
+                exe.submit(*tick, belong) for tick in self.__pending
             ]
 
         self.__pending = []  # clear up
