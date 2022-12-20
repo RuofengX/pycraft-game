@@ -3,7 +3,11 @@ import asyncio as aio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from game import Core
-from pyworld.datamodels.function_call import RequestModel, ResultModel, ServerReturnModel
+from pyworld.datamodels.function_call import (
+    RequestModel,
+    ResultModel,
+    ServerReturnModel,
+)
 from pyworld.datamodels.property_cache import PropertyCache
 from pyworld.datamodels.websockets import WSCommand, WSPayload, WSStage
 from pyworld.player import Player

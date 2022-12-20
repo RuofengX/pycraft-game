@@ -8,13 +8,9 @@ from pyworld.world import World
 
 
 class EquipStatus(Enum):
-    INIT = "Equipment initiating."
-    NOT_CHECK = "Still not checking."
+    NO_BELONG = "Equip do not have Owner"
     CHECK_FAIL = "Some check not pass. Equipment may not work."
-    CHECK_PASS = "Equipment running fine."
-    WORKING = "Equipment works fine."
-    ERROR = "Equipment works into wrong."
-    UPDATING = "Equipment info updating."
+    OK = "Equiped by an owner. Require satisfied. Ready to work."
 
 
 Requirement = TypeVar("Requirement")
@@ -24,35 +20,48 @@ class Equipment(Generic[Requirement], ControlMixin, Entity):
     require_module: Optional[Type[Requirement]] = None
     limit_num: int = 1
 
-    def __init__(self) -> None:
-        self.status: EquipStatus = EquipStatus.INIT
-        super().__init__()
-        self.belong: Optional[Entity] = None
-        self.status = EquipStatus.NOT_CHECK
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.status = EquipStatus.NO_BELONG
+        self.owner: Optional[EquipmentMixin] = None
 
-    def _on_equip(self, belong: Entity) -> None:
-        if self._check_require(belong):
-            self.status = EquipStatus.CHECK_PASS
+    def _refresh_status(self) -> bool:
+        """Return True if ready"""
+        if self.owner is None:
+            self.status = EquipStatus.NO_BELONG
+            return False
         else:
-            self.status = EquipStatus.CHECK_FAIL
-        self.belong = belong
+            if self._check_require(self.owner):
+                self.status = EquipStatus.OK
+                return True
+            else:
+                self.status = EquipStatus.CHECK_FAIL
+                return False
+
+    def _on_equip(self, belong: 'EquipmentMixin') -> None:
+        self.owner = belong
+        self._refresh_status()
 
     def _on_unequip(self) -> None:
-        self.status = EquipStatus.NOT_CHECK
-        self.belong = None
+        self.owner = None
+        self._refresh_status()
 
-    def _check_require(self, belong: Entity) -> bool:
+    def _check_require(self, belong: 'EquipmentMixin') -> bool:
         """
-        Check input entity is satisfy for
-        self.require_module
+        Check input entity is satisfy for self.require_module
         """
+
+        rtn: bool
+
         if self.require_module is None:
-            return True
+            rtn = True
+        else:
+            rtn = isinstance(belong, self.require_module)
 
-        return isinstance(belong, self.require_module)
+        return rtn
 
-    def _tick(self, o: Entity, w: World) -> None:
-        super()._tick(o)
+    def _tick_first(self, belong: World) -> None:
+        self._refresh_status()
 
 
 Equipments = TypeVar(name="Equipments", bound=Equipment)
@@ -124,7 +133,7 @@ class EquipmentMixin(Entity):
         Respect to limit_num defined in Equipment subclass
         """
 
-        if equip.belong is not None:
+        if equip.owner is not None:
             return False
 
         if not self.__equip_check_limit(equip):
@@ -161,19 +170,21 @@ class EquipmentMixin(Entity):
                 rtn._on_unequip()
                 return cast(Equipments, rtn)
 
-    @with_instance_lock("_EquipmentMixin__equip_list_lock")
+    #  Use @with_instance_lock() will broke the generic system.
     def _equip_get(
-        self, target: str | Type[Equipment], index: int = 0
-    ) -> Optional[Equipment]:
-        stack = self.__get_stack(target)
-        if len(stack) == 0:
-            return None
-        return stack[index]
+        self, target: str | Type[Equipments] , index: int = 0
+    ) -> Optional[Equipments]:
 
-    def _equip_tick(self, belong: World) -> None:
-        for each in self.equip_list:
+        with self.__equip_list_lock:
+            stack: List[Equipments] = self.__get_stack(target)
 
-            if not each._check_require(self):
-                continue
+            if len(stack) == 0:
+                return None
 
-            each._tick(o=self, w=belong)
+            if isinstance(target, str):
+                return stack[index]
+
+            if not issubclass(target, Equipment):
+                return None
+
+            return stack[index]

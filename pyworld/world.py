@@ -1,7 +1,5 @@
 from __future__ import annotations
-from itertools import repeat
 
-import time
 from functools import wraps
 from threading import Lock, Thread
 from typing import (
@@ -9,6 +7,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterator,
     List,
     Literal,
     Optional,
@@ -16,7 +15,6 @@ from typing import (
     Type,
     TypeGuard,
     cast,
-    reveal_type,
     runtime_checkable,
 )
 
@@ -124,13 +122,13 @@ class World(ConcurrentMixin, Entity):
 
     def __static_init__(self) -> None:
         super().__static_init__()
+        self._world: Literal[None] = None
         self.__entity_count_lock = Lock()
         self.__entity_dict_lock = Lock()
 
     def _world_tick(self, belong: Literal[None] = None) -> None:
-        time.sleep(0.1)
         for ent in self.entity_dict.values():
-            ent._tick(belong=self)
+            ent._tick()
 
     @with_instance_lock("_World__entity_count_lock")
     def _world_entity_plus(self) -> int:
@@ -138,6 +136,7 @@ class World(ConcurrentMixin, Entity):
         self.entity_count += 1
         return self.entity_count
 
+    # Use @with_instance_lock here will broke generic system.
     def world_new_entity(self, cls: Type[Entities], **kwargs) -> Entities:
         """
         New an entity in the world.
@@ -147,9 +146,10 @@ class World(ConcurrentMixin, Entity):
         first argument of cls build method.
         """
 
-        with self.__entity_dict_lock:  # Use @with_instance_lock here will broke generic system.
+        with self.__entity_dict_lock:
             eid = self._world_entity_plus()
             new_e: Entities = cls(eid=eid, **kwargs)
+            new_e._world = self  # before next tick, the _world property is set.
             self.entity_dict[eid] = new_e
             return new_e
 
@@ -177,7 +177,12 @@ class World(ConcurrentMixin, Entity):
     def world_get_nearby_entity(
         self, target: int | Entity, radius: float
     ) -> List[Entity]:
-        """Return character instances list near the position"""
+        """
+        Return character instances list near the position.
+
+        All Positional Entity within(not include) the radius will append
+        to return list.
+        """
 
         rtn: List[Entity] = []
 
@@ -229,7 +234,7 @@ class World(ConcurrentMixin, Entity):
         return None
 
     @staticmethod
-    def _get_natural_distance(target1: Positional, target2: Positional):
+    def _get_natural_distance(target1: Positional, target2: Positional) -> float:
         p1: Vector = target1.position
         p2: Vector = target2.position
         dis: float = (p1 - p2).length()
@@ -248,14 +253,14 @@ class World(ConcurrentMixin, Entity):
             return None
         return self._get_natural_distance(valid1, valid2)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Entity]:
         return self.entity_dict.values().__iter__()
 
 
 class Continuum(Thread):
     """World with time"""
 
-    def __init__(self, world: Optional[World] = None):
+    def __init__(self, world: Optional[World] = None) -> None:
         super().__init__()
         if world is None:
             world = World()
@@ -264,7 +269,7 @@ class Continuum(Thread):
         self.pause_flag = False
         self.is_idle = True  # tick is not running
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Set pause_flag and stop_flag to True, which will
         cause the run() method terminate.
@@ -278,10 +283,10 @@ class Continuum(Thread):
         if self.is_alive():
             self.join()
 
-    def run(self):
-        """Thread run the loop.
-
-        Use `.start()` method instead.
+    def run(self) -> None:
+        """
+        Main loop.
+        Use `Continuum().start()` method to start the thread non-blockly.
         """
 
         while not self.stop_flag:  # -> STOP
@@ -291,7 +296,11 @@ class Continuum(Thread):
                 self.is_idle = True  # ->IDLE
         return  # -> EXIT
 
-    def pause(self):
+    def tick(self, num: int = 1) -> None:
+        for i in range(num):
+            self.world._tick(belong=None)
+
+    def pause(self) -> None:
         """Wait until the game pause.
         world._world_lock would release."""
         self.pause_flag = True
@@ -299,6 +308,6 @@ class Continuum(Thread):
             pass
         return
 
-    def resume(self):
+    def resume(self) -> None:
         """Resume the game after game pause."""
         self.pause_flag = False

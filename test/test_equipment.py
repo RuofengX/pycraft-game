@@ -8,7 +8,7 @@ from pyworld.modules.equipments.radar import Radar
 from pyworld.world import Character, Continuum
 
 
-class EquipTargetEntity(EquipmentMixin, Entity):
+class EquipMixinEntity(EquipmentMixin, Entity):
     pass
 
 
@@ -17,7 +17,7 @@ class NotExist:
 
 
 class TestModule(Equipment):
-    require_module = EquipTargetEntity
+    require_module = EquipMixinEntity
     limit_num = 3
 
 
@@ -31,7 +31,8 @@ class TestLimitModule(Equipment):
 
 class TestEquipBase(unittest.TestCase):
     def setUp(self) -> None:
-        self.ent = EquipTargetEntity()
+        self.ct = Continuum()
+        self.ent = self.ct.world.world_new_entity(EquipMixinEntity)
 
     def test_ensure_feature(self) -> None:
         assert not self.ent._equip_add(TestReqModule())
@@ -40,10 +41,10 @@ class TestEquipBase(unittest.TestCase):
 
     def test_equip_on(self) -> None:
         eqp = TestModule()
-        self.ent._equip_add(eqp)
+        assert self.ent._equip_add(eqp)
         assert self.ent.equip_list == [eqp]
 
-        ent2 = EquipTargetEntity()
+        ent2 = EquipMixinEntity()
         assert not ent2._equip_add(eqp)
         assert self.ent._equip_pop(eqp) == eqp
         assert ent2._equip_add(eqp)
@@ -96,7 +97,7 @@ class TestRadar(unittest.TestCase):
 
     def setUp(self) -> None:
         self.ct = Continuum()
-        self.radar = Radar()
+        self.radar = self.ct.world.world_new_entity(Radar)
         self.no_position = self.ct.world.world_new_entity(cls=self.NoPosition)
         self.position = self.ct.world.world_new_entity(
             cls=self.Position, pos=Vector(0, 0, 0)
@@ -113,6 +114,9 @@ class TestRadar(unittest.TestCase):
         self.position3 = self.ct.world.world_new_entity(
             cls=self.Position, pos=Vector(0, 0, 3)
         )
+        self.moving0 = self.ct.world.world_new_entity(
+            cls=Character, pos=Vector(3, 0, 0), velo=Vector(-1, 0, 0)
+        )
 
     def test_require(self) -> None:
         assert not self.no_position._equip_add(self.radar)
@@ -126,11 +130,38 @@ class TestRadar(unittest.TestCase):
         assert self.position.equip_list == [self.radar]
 
     def test_scan(self) -> None:
-        self.radar.set_scan_tick(1)
-        self.radar.radius = 0
         assert self.position._equip_add(self.radar)
         assert self.position.equip_list == [self.radar]
+        self.radar.set_scan_frequence(1)
+        self.radar.radius = 0
+        self.ct.world._tick()
+        radar = self.position._equip_get(Radar)
+        assert radar is not None
+        assert radar.scan_result == []
+
+        self.radar.radius = 0.1
         self.ct.world._tick()
         radar = cast(Radar, self.position._equip_get(Radar))
         assert radar.scan_result == [self.position0]
-        # FIXME: radar.interval_tick is incorrect.
+
+        self.radar.radius = 1.1
+        self.ct.world._tick()
+        radar = cast(Radar, self.position._equip_get(Radar))
+        assert radar.scan_result == [self.position0, self.position1]
+
+        self.radar.radius = 2.1
+        self.ct.world._tick()
+        radar = cast(Radar, self.position._equip_get(Radar))
+        assert radar.scan_result == [self.position0, self.position1, self.position2]
+
+    def test_scan_moving(self) -> None:
+        assert self.position._equip_add(self.radar)
+        assert self.position.equip_list == [self.radar]
+        self.radar.radius = 1.1
+        self.radar.set_scan_frequence(1)
+        self.ct.tick(2)
+        assert self.moving0 not in self.radar.scan_result
+        self.ct.tick(1)
+        assert self.moving0 in self.radar.scan_result
+        self.ct.tick(2)
+        assert self.moving0 not in self.radar.scan_result

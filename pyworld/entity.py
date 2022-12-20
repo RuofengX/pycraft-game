@@ -7,6 +7,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from functools import wraps
 from threading import Lock
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Concatenate,
@@ -16,6 +17,7 @@ from typing import (
     ParamSpec,
     Protocol,
     Self,
+    Set,
     Tuple,
     TypeAlias,
     TypeGuard,
@@ -26,7 +28,11 @@ from typing import (
 from objprint import op
 from pydantic import BaseModel
 
-from pyworld.datamodels.function_call import ExceptionModel, CallStatus
+from pyworld.datamodels.function_call import CallStatus, ExceptionModel
+
+if TYPE_CHECKING:
+    from pyworld.world import World
+
 
 Self_Entity = TypeVar("Self_Entity", bound="Entity")
 T = TypeVar("T")
@@ -50,7 +56,8 @@ def with_instance_lock(lock_name: str, debug: bool = False):
         else:
             if debug:
                 raise AttributeError(
-                    f"Instance of {target.__class__.__name__} do not have {lock_name} lock."
+                    f"Instance of {target.__class__.__name__} "
+                    "do not have {lock_name} lock."
                 )
             return None
 
@@ -123,9 +130,17 @@ class Entity:
         Very useful for those property that cannot be pickled."""
 
         self._tick_lock = Lock()  # Lock when entity is ticking.
-        self._report_flag = False  # Control whether show a message about self in console.
+        self._report_flag = (
+            False  # Control whether show a message about self in console.
+        )
         self._log_flag = False  # Control whether write log into self.tick_log
-        self.__static_called_check = True  # True means all __static_init__ in mro call their super.
+        self.__static_called_check = (
+            True  # True means all __static_init__ in mro call their super.
+        )
+
+        # name of additional attrs that wouldn't show to user.
+        self._dir_mask: Set[str] = set()
+        self._world: Optional[World] = None
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Entity):
@@ -136,22 +151,43 @@ class Entity:
     def __hash__(self) -> int:
         return self.uuid
 
-    def _tick_last(self, belong: Optional[Entity] = None) -> None:
-        """Will do after _tick"""
+    def _tick_first(self, belong: Optional[World]) -> None:
+        """
+        Will do before _tick
+        Useful for basic class to prepare data before subclass custom tick.
+
+        e.g. Equipment class use _tick_first to refresh EquipStatus for later
+        use in subclasses.
+        """
+
+        pass
+
+    def _tick_last(self, belong: Optional[World] = None) -> None:
+        """
+        Will do after _tick
+        Useful for basic class to collection data after subclass custom tick.
+
+        e.g. ConcurrentMixin use _tick_last to gather and wait for all async
+        tick finished.
+        """
         pass
 
     @with_instance_lock("_tick_lock")
-    def _tick(self, belong: Optional[Entity] = None) -> None:
+    def _tick(self, belong: Optional[World] = None) -> None:
         """Describe what a entity should do in a tick.
 
         Will auto call entity's every (suffix) _tick method.
         """
 
+        self._world = belong
         log = TickLogModel(
             age=self.age,
         )
         try:
-            # Call every function named after _tick of class
+            # BEFORE
+            self._tick_first(belong)
+
+            # MAIN::Call every function named after _tick of class
             for func in dir(
                 self
             ):  # dir() could show all instance method and properties;
@@ -161,6 +197,7 @@ class Entity:
                         target: Callable[[Optional[Entity]], None] = getattr(self, func)
                         if callable(target):
                             target(belong)
+            # AFTER
             self._tick_last(belong)
             log.status = CallStatus.SUCCESS
 
@@ -172,7 +209,7 @@ class Entity:
                 self.tick_log.append(log)
             self.age += 1
 
-    def _report_tick(self, belong) -> None:
+    def _report_tick(self, belong: World) -> None:
         """Report self, for logging or debugging usage."""
         if not self._report_flag:
             return
@@ -211,6 +248,9 @@ class Entity:
         self.__dict__.update(state)
         self.__static_init__()
 
+    def __str__(self) -> str:
+        return f'{self.__class__.__name__}(uuid={self.uuid})'
+
 
 FutureTick: TypeAlias = Callable[[Entity, Optional[Entity]], None]
 # Tick Method Type that would be called in future.
@@ -239,7 +279,7 @@ class ConcurrentMixin(Entity):
 
         self.__pending.append((method, owner))
 
-    def _tick_last(self, belong: Optional[Entity] = None) -> None:
+    def _tick_last(self, belong: Optional[World] = None) -> None:
         """
         Override the Entity._tick_last method.
 

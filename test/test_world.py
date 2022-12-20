@@ -50,6 +50,13 @@ class TestWorld(unittest.TestCase):
 
     def test_new_character(self) -> None:
         assert self.test_ent is self.ct.world.entity_dict[1]
+        assert self.test_ent._world == self.ct.world
+
+    def test_world_property(self) -> None:
+        assert self.test_ent._world == self.ct.world
+        self.test_ent._world = None
+        self.ct.world._tick()
+        assert self.test_ent._world == self.ct.world
 
     def test_iter(self) -> None:
         ent_list = [

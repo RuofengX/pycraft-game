@@ -1,7 +1,7 @@
 from typing import ClassVar, List, Optional
 
 from pyworld.modules.equipment import Equipment, EquipStatus
-from pyworld.world import Character, Positional, World
+from pyworld.world import Positional, World
 
 
 class Radar(Equipment[Positional]):
@@ -9,13 +9,13 @@ class Radar(Equipment[Positional]):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.radius: int = 0
+        self.radius: float = 1
         self.interval_tick: int = 100
         self.auto_scan: bool = True
         self.scan_result: List[Positional] = []
         self.last_update: int = -1
 
-    def set_scan_tick(self, interval: int) -> None:
+    def set_scan_frequence(self, interval: int) -> None:
         self.interval_tick = interval
 
     def toggle_auto_scan(self, target: Optional[bool] = None) -> None:
@@ -28,12 +28,17 @@ class Radar(Equipment[Positional]):
         else:
             self.auto_scan = target
 
-    def _tick(self, o: Character, w: World) -> None:
-        super()._tick(o, w)
-        if self.status == EquipStatus.CHECK_PASS:  # o is Character
-            if self.auto_scan:
-                if o.age % self.interval_tick == 0:  # use the interval
-                    self.scan_result = w.world_get_nearby_entity(
-                        o, radius=self.radius
-                    )
-                    self.last_update = w.age
+    def _radar_tick(self, belong: World) -> None:
+        if self.status != EquipStatus.OK:
+            return
+
+        assert self.owner is not None
+        o = self.owner
+        w = belong
+
+        if self.auto_scan:
+            if o.age % self.interval_tick == 0:  # use the interval
+                self.scan_result = w.world_get_nearby_entity(
+                    o, radius=self.radius
+                )
+                self.last_update = w.age

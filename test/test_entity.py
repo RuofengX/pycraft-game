@@ -1,10 +1,10 @@
 import pickle
+import unittest
 from threading import Lock
 from typing import Optional
 
-import unittest
-
 from pyworld.entity import Entity, with_instance_lock
+from pyworld.world import World
 
 
 class TEntity(Entity):
@@ -13,11 +13,11 @@ class TEntity(Entity):
         self.tick_times = 0
         self.tick_last_time = 0
 
-    def _tick(self, belong: Optional[Entity] = None) -> None:
+    def _tick(self, belong: Optional[World] = None) -> None:
         self.tick_times += 1
         return super()._tick(belong)
 
-    def _tick_last(self, belong: Optional[Entity] = None) -> None:
+    def _tick_last(self, belong: Optional[World] = None) -> None:
         self.tick_last_time += 1
         return super()._tick_last(belong)
 

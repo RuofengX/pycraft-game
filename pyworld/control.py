@@ -22,6 +22,9 @@ class ControlMixin(Entity):
         super().__init__(**kwargs)
         self.__cache: Dict[str, Dict[str, Any]] = {}
 
+    def __static_init__(self) -> None:
+        super().__static_init__()
+
     def ctrl_list_method(self) -> Dict[str, str]:
         """
         Return a functions dict
@@ -50,6 +53,8 @@ class ControlMixin(Entity):
         with self._tick_lock:
             for property_name in dir(self):
                 if property_name[0] != "_":  # Ignore attr start with _
+                    if property_name in self._dir_mask:  # wouldn't show masked property
+                        continue
                     pty: Any = getattr(self, property_name)
                     if not callable(pty):
                         rtn[property_name] = str(pty)
