@@ -142,14 +142,13 @@ class Entity:
         self._dir_mask: Set[str] = set()
         self._world: Optional[World] = None
 
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, Entity):
-            return False
+    def get_state(self) -> Dict[str, Any]:
+        """Return the entity state dict."""
+        return self.__getstate__()
 
-        return self.uuid == other.uuid
-
-    def __hash__(self) -> int:
-        return self.uuid
+    def get_state_b(self) -> bytes:
+        """Return the entity pickle binary."""
+        return pickle.dumps(self)
 
     def _tick_first(self, belong: Optional[World]) -> None:
         """
@@ -216,13 +215,14 @@ class Entity:
         if self.age % 20 == 0:
             op(self.__dict__)
 
-    def get_state(self) -> Dict[str, Any]:
-        """Return the entity state dict."""
-        return self.__getstate__()
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Entity):
+            return False
 
-    def get_state_b(self) -> bytes:
-        """Return the entity pickle binary."""
-        return pickle.dumps(self)
+        return self.uuid == other.uuid
+
+    def __hash__(self) -> int:
+        return self.uuid
 
     def __getstate__(self) -> Dict[str, Any]:
         """
@@ -249,7 +249,10 @@ class Entity:
         self.__static_init__()
 
     def __str__(self) -> str:
-        return f'{self.__class__.__name__}(uuid={self.uuid})'
+        return f'{self.__class__.__name__}({self.uuid})'
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}<{self.uuid}>'
 
 
 FutureTick: TypeAlias = Callable[[Entity, Optional[Entity]], None]
