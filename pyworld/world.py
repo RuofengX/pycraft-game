@@ -128,7 +128,7 @@ class World(ConcurrentMixin, Entity):
 
     def _world_tick(self, belong: Literal[None] = None) -> None:
         for ent in self.entity_dict.values():
-            ent._tick()
+            ent._tick(self)
 
     @with_instance_lock("_World__entity_count_lock")
     def _world_entity_plus(self) -> int:
@@ -169,9 +169,9 @@ class World(ConcurrentMixin, Entity):
             return None
 
     @with_instance_lock("_World__entity_dict_lock")
-    def world_del_entity(self, eid: int) -> None:
+    def world_del_entity(self, eid: int) -> Optional[Entity]:
         if eid in self.entity_dict.keys():
-            self.entity_dict.pop(eid)
+            return self.entity_dict.pop(eid)
 
     @with_instance_lock("_World__entity_dict_lock")
     def world_get_nearby_entity(

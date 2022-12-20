@@ -1,5 +1,4 @@
 import unittest
-from typing import cast
 
 from pyworld.basic import Vector
 from pyworld.entity import Entity
@@ -135,24 +134,26 @@ class TestRadar(unittest.TestCase):
         self.radar.set_scan_frequence(1)
         self.radar.radius = 0
         self.ct.world._tick()
-        radar = self.position._equip_get(Radar)
-        assert radar is not None
-        assert radar.scan_result == []
+        assert self.radar.scan_result == []
 
         self.radar.radius = 0.1
-        self.ct.world._tick()
-        radar = cast(Radar, self.position._equip_get(Radar))
-        assert radar.scan_result == [self.position0]
+        self.radar._radar_tick(self.ct.world)
+        assert self.radar.scan_result == [self.position0]
 
         self.radar.radius = 1.1
-        self.ct.world._tick()
-        radar = cast(Radar, self.position._equip_get(Radar))
-        assert radar.scan_result == [self.position0, self.position1]
+        self.radar._radar_tick(self.ct.world)
+        assert self.radar.scan_result == [self.position0, self.position1]
 
         self.radar.radius = 2.1
-        self.ct.world._tick()
-        radar = cast(Radar, self.position._equip_get(Radar))
-        assert radar.scan_result == [self.position0, self.position1, self.position2]
+        assert self.ct.world.world_del_entity(
+            self.ct.world.world_get_entity_index(self.moving0)
+        ) == self.moving0
+        self.radar._radar_tick(self.ct.world)
+        assert self.radar.scan_result == [
+            self.position0,
+            self.position1,
+            self.position2,
+        ]
 
     def test_scan_moving(self) -> None:
         assert self.position._equip_add(self.radar)
@@ -161,7 +162,7 @@ class TestRadar(unittest.TestCase):
         self.radar.set_scan_frequence(1)
         self.ct.tick(2)
         assert self.moving0 not in self.radar.scan_result
-        self.ct.tick(1)
+        self.ct.tick(2)
         assert self.moving0 in self.radar.scan_result
         self.ct.tick(2)
         assert self.moving0 not in self.radar.scan_result
