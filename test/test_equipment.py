@@ -1,5 +1,5 @@
-from typing import cast
 import unittest
+from typing import cast
 
 from pyworld.basic import Vector
 from pyworld.entity import Entity
@@ -63,13 +63,12 @@ class TestEquipBase(unittest.TestCase):
         assert not self.ent._equip_add(eqp3)
         assert self.ent._equip_available(TestModule) == TestModule.limit_num - 3
 
-
     def test_pop(self) -> None:
         eqp = TestModule()
         assert self.ent._equip_add(eqp)
         assert self.ent._equip_pop("TestModule") == eqp
         assert self.ent.equip_list == []
-    
+
     def test_get(self) -> None:
         eqp = TestModule()
         eqp_2 = TestModule()
@@ -79,13 +78,14 @@ class TestEquipBase(unittest.TestCase):
         assert self.ent._equip_add(eqp_3)
 
         assert self.ent._equip_get(TestModule) == eqp
-        assert self.ent._equip_get('TestModule') == eqp
+        assert self.ent._equip_get("TestModule") == eqp
 
         assert self.ent._equip_get(TestModule, 1) == eqp_2
-        assert self.ent._equip_get('TestModule', 1) == eqp_2
+        assert self.ent._equip_get("TestModule", 1) == eqp_2
 
         assert self.ent._equip_get(TestModule, 2) == eqp_3
-        assert self.ent._equip_get('TestModule', 2) == eqp_3
+        assert self.ent._equip_get("TestModule", 2) == eqp_3
+
 
 class TestRadar(unittest.TestCase):
     class NoPosition(EquipmentMixin, Entity):
@@ -97,22 +97,28 @@ class TestRadar(unittest.TestCase):
     def setUp(self) -> None:
         self.ct = Continuum()
         self.radar = Radar()
-        self.no_position = self.ct.world.world_new_entity(
-            cls=self.NoPosition
-        )
+        self.no_position = self.ct.world.world_new_entity(cls=self.NoPosition)
         self.position = self.ct.world.world_new_entity(
             cls=self.Position, pos=Vector(0, 0, 0)
         )
-        self.position0 = self.ct.world.world_new_entity(cls=self.Position, pos=Vector(0, 0, 0))
-        self.position1 = self.ct.world.world_new_entity(cls=self.Position, pos=Vector(0, 0, 1))
-        self.position2 = self.ct.world.world_new_entity(cls=self.Position, pos=Vector(0, 0, 2))
-        self.position3 = self.ct.world.world_new_entity(cls=self.Position, pos=Vector(0, 0, 3))
-    
+        self.position0 = self.ct.world.world_new_entity(
+            cls=self.Position, pos=Vector(0, 0, 0)
+        )
+        self.position1 = self.ct.world.world_new_entity(
+            cls=self.Position, pos=Vector(0, 0, 1)
+        )
+        self.position2 = self.ct.world.world_new_entity(
+            cls=self.Position, pos=Vector(0, 0, 2)
+        )
+        self.position3 = self.ct.world.world_new_entity(
+            cls=self.Position, pos=Vector(0, 0, 3)
+        )
+
     def test_require(self) -> None:
         assert not self.no_position._equip_add(self.radar)
         assert self.position._equip_add(self.radar)
         assert self.position.equip_list == [self.radar]
-    
+
     def test_limit(self) -> None:
         assert self.position._equip_add(self.radar)
         assert self.position.equip_list == [self.radar]
@@ -126,4 +132,5 @@ class TestRadar(unittest.TestCase):
         assert self.position.equip_list == [self.radar]
         self.ct.world._tick()
         radar = cast(Radar, self.position._equip_get(Radar))
-        assert radar.scan_result == [self.position0]  # FIXME: radar.interval_tick is incorrect.
+        assert radar.scan_result == [self.position0]
+        # FIXME: radar.interval_tick is incorrect.

@@ -1,19 +1,9 @@
 from enum import Enum
 from threading import Lock
-from typing import (
-    TYPE_CHECKING,
-    Generic,
-    Optional,
-    Protocol,
-    Type,
-    TypeVar,
-    Dict,
-    List,
-    cast,
-)
-from pyworld.control import ControlMixin
+from typing import Generic, List, Optional, Type, TypeVar, cast
 
-from pyworld.entity import Checkable, Entity, with_instance_lock
+from pyworld.control import ControlMixin
+from pyworld.entity import Entity, with_instance_lock
 from pyworld.world import World
 
 

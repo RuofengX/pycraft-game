@@ -1,7 +1,6 @@
-from dataclasses import dataclass, field
-from typing import ClassVar, List, Optional, Type
+from typing import ClassVar, List, Optional
 
-from pyworld.modules.equipment import Equipment, EquipStatus, Requirement
+from pyworld.modules.equipment import Equipment, EquipStatus
 from pyworld.world import Character, Positional, World
 
 
@@ -38,4 +37,3 @@ class Radar(Equipment[Positional]):
                         o, radius=self.radius
                     )
                     self.last_update = w.age
-
