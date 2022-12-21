@@ -14,6 +14,7 @@ from typing import Any, ClassVar, Dict, Generic, Optional, Self, Type, TypeVar
 
 from pyworld.control import ControlMixin, ControlResultModel
 from pyworld.datamodels.function_call import RequestModel
+from pyworld.entity import Entity
 from pyworld.world import Character, World
 
 
@@ -108,7 +109,7 @@ class ItemStack(Generic[Items]):
             return ItemStack(item=self.item, num=num)
 
 
-class Cargo(ControlMixin, UserDict[str, ItemStack[Items]]):
+class Cargo(ControlMixin, UserDict[str, ItemStack[Items]], Entity):
     """
     Use as the container to store all ItemStack
 

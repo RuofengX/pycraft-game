@@ -89,7 +89,61 @@ class TickLogModel(BaseModel):
         self.status = CallStatus.SUCCESS
 
 
-class Entity:
+class Pickleable:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__static_called_check: bool = False
+        self.__static_init__()
+        if not self.__static_called_check:
+            raise SyntaxError("Some mixins' __static_init__ methods not call super()!")
+
+    def __static_init__(self) -> None:
+        """
+        Will be called when __init__ and loading from pickle bytes.
+
+        All properties start with `_` will be delete when pickling,
+        and re-init after un-pickling. Since unpickle processing won't
+        run __init__ again, so all the property(cannot be pickled) should
+        defined in this method to ensure a proper re-init.
+
+        The save process only happened when tick is done, so all Lock() instance
+        is released when pickling.
+
+        Very useful for those property that cannot be pickled.
+        """
+
+        self.__static_called_check = (
+            True  # True means all __static_init__ in mro call their super.
+        )
+
+    def __getstate__(self) -> Dict[str, Any]:
+        """
+        Implement pickle protocol.
+
+        Throw hidden properties named begun with `_`
+        which cannot be serialized or jsonable.
+
+        Those non-picklable properties should be set in __static_init__ method
+        and will be automatically initiated after loading from binary.
+        """
+
+        status = self.__dict__.copy()  # Until now, the entity infomation.
+
+        pop_list: List[str] = []
+        for key in status.keys():
+            if key[0] == "_":
+                pop_list.append(key)
+        for key in pop_list:
+            status.pop(key)
+
+        return status
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self.__static_init__()
+
+
+class Entity(Pickleable):
     """
     Being
 
@@ -104,8 +158,7 @@ class Entity:
 
     def __init__(self, *, eid: int = -1) -> None:
         """Entity only accept kwargs arguments."""
-        self.__static_called_check: bool = False
-        self.__static_init__()
+        super().__init__()
         self.eid = eid
         self.age = 0
         self.uuid: int = uuid.uuid4().int
@@ -113,34 +166,19 @@ class Entity:
         self.tick_log: List[TickLogModel] = []
         self.last_tick_log: Optional[TickLogModel] = None
 
-        if not self.__static_called_check:
-            raise SyntaxError("Some mixins' __static_init__ methods not call super()!")
-
     def __static_init__(self) -> None:
-        """Will be called when __init__ and loading from pickle bytes.
-
-        All properties start with `_` will be delete when pickling,
-        and re-init after un-pickling. Since unpickle processing won't
-        run __init__ again, so all the property(cannot be pickled) should
-        defined in this method to ensure a proper re-init.
-
-        The save process only happened when tick is done, so all Lock() instance
-        is released when pickling.
-
-        Very useful for those property that cannot be pickled."""
 
         self._tick_lock = Lock()  # Lock when entity is ticking.
         self._report_flag = (
             False  # Control whether show a message about self in console.
         )
         self._log_flag = False  # Control whether write log into self.tick_log
-        self.__static_called_check = (
-            True  # True means all __static_init__ in mro call their super.
-        )
+        self._world: Optional[World] = None
 
         # name of additional attrs that wouldn't show to user.
         self._dir_mask: Set[str] = set()
-        self._world: Optional[World] = None
+
+        return super().__static_init__()
 
     def get_state(self) -> Dict[str, Any]:
         """Return the entity state dict."""
@@ -224,35 +262,11 @@ class Entity:
     def __hash__(self) -> int:
         return self.uuid
 
-    def __getstate__(self) -> Dict[str, Any]:
-        """
-        Implement pickle protocol.
-
-        Throw hidden properties named begun with `_`
-        which cannot be serialized or jsonable.
-
-        Those non-picklable properties should be set in __static_init__ method
-        and will be automatically initiated after loading from binary.
-        """
-
-        status = self.__dict__.copy()  # Until now, the entity infomation.
-        pop_list: List[str] = []  # Delete list
-        for key in status.keys():
-            if key[0] == "_":
-                pop_list.append(key)
-        for key in pop_list:
-            status.pop(key)
-        return status
-
-    def __setstate__(self, state: Dict[str, Any]) -> None:
-        self.__dict__.update(state)
-        self.__static_init__()
-
     def __str__(self) -> str:
-        return f'{self.__class__.__name__}({self.uuid})'
+        return f"{self.__class__.__name__}({self.uuid})"
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}<{self.uuid}>'
+        return f"{self.__class__.__name__}<{self.uuid}>"
 
 
 FutureTick: TypeAlias = Callable[[Entity, Optional[Entity]], None]

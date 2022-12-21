@@ -1,4 +1,5 @@
 import asyncio as aio
+import os
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
@@ -12,9 +13,11 @@ from pyworld.datamodels.property_cache import PropertyCache
 from pyworld.datamodels.websockets import WSCommand, WSPayload, WSStage
 from pyworld.player import Player
 
+save_file_path = os.environ.get('PYWORLD_SAVE_PATH')
+
 app = FastAPI()
-# core = Core(save_file_path)
-core = Core("save-301286.bin")
+core = Core(save_file_path)
+# core = Core("save-301286.bin")
 
 
 @app.on_event("startup")

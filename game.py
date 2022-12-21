@@ -29,7 +29,12 @@ class Core:
             except FileNotFoundError:
                 warn('Save file path is not exist. Create one.')
                 with open(save_file_path, mode='wb') as f:
-                    f.close()
+                    pass
+
+            except EOFError:
+                warn('Save file path is broken. Create a new one.')
+                return self.__init__()
+
         else:
             # Set new file path.
             rnd_id: int = random.randint(100000, 999999)

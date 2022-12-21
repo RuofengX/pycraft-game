@@ -104,7 +104,7 @@ class ServerReturnModel(ResultModel):
         self.status = CallStatus.SUCCESS
         self.detail = {
             "dict": entity.get_state(),
-            "obj_pickle_base64": str(obj_pickle_base64),
+            "obj_pickle_base64": str(obj_pickle_base64, encoding='utf-8'),
         }
         return self.to_json()
 
