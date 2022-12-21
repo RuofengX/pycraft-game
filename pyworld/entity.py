@@ -211,7 +211,8 @@ class Entity(Pickleable):
 
     @with_instance_lock("_tick_lock")
     def _tick(self, belong: Optional[World] = None) -> None:
-        """Describe what a entity should do in a tick.
+        """
+        Describe what a entity should do in a tick.
 
         Will auto call entity's every (suffix) _tick method.
         """

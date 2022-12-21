@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 from enum import Enum
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
@@ -25,9 +25,6 @@ class ExceptionModel(BaseModel):
             exception_name=e.__class__.__name__,
             exception_detail=str(e),
         )
-
-
-
 
 
 class RequestModel(BaseModel):
@@ -104,7 +101,7 @@ class ServerReturnModel(ResultModel):
         self.status = CallStatus.SUCCESS
         self.detail = {
             "dict": entity.get_state(),
-            "obj_pickle_base64": str(obj_pickle_base64, encoding='utf-8'),
+            "obj_pickle_base64": str(obj_pickle_base64, encoding="utf-8"),
         }
         return self.to_json()
 

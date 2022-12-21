@@ -42,4 +42,4 @@ class Client(ClientSession):
             assert response.status == 200, response.status
             return ServerReturnModel(
                 **(await response.json())
-            ).dict()
+            ).to_dict()

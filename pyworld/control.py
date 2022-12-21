@@ -49,16 +49,8 @@ class ControlMixin(Entity):
         name as the key, value as the values.
         """
 
-        rtn: Dict[str, Any] = {}
         with self._tick_lock:
-            for property_name in dir(self):
-                if property_name[0] != "_":  # Ignore attr start with _
-                    if property_name in self._dir_mask:  # wouldn't show masked property
-                        continue
-                    pty: Any = getattr(self, property_name)
-                    if not callable(pty):
-                        rtn[property_name] = str(pty)
-            return rtn
+            return self.get_state()
 
     def ctrl_safe_call(self, data: RequestModel) -> ControlResultModel:
         """
