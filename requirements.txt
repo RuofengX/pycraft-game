@@ -4,4 +4,4 @@ fastapi
 pydantic
 aiohttp
 dictdiffer
-requests
+httpx

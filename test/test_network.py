@@ -4,7 +4,6 @@ import pickle
 import unittest
 
 from fastapi.testclient import TestClient
-from requests import Response
 
 from pyworld.modules.item import Item
 from pyworld.player import Player
@@ -35,7 +34,7 @@ class TestNetwork(unittest.TestCase):
             "username": "test1",
             "passwd": "1",
         }
-        response: Response = self.client.get("/register", params=params)
+        response = self.client.get("/register", params=params)
         assert response.status_code == 200
         assert response.json()["status"] == "Success"
         assert self.world.entity_dict != {}
@@ -64,7 +63,7 @@ class TestNetwork(unittest.TestCase):
         }
         eid = self.core.register(**params).eid
 
-        response: Response = self.client.get("/ctrl/get-property", params=params)
+        response = self.client.get("/ctrl/get-property", params=params)
         assert response.status_code == 200
         assert response.json()["status"] == "Success"
         player_c = response.json()["detail"]
