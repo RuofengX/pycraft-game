@@ -4,7 +4,7 @@ import base64
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from fastapi.encoders import jsonable_encoder
+# from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ class ExceptionModel(BaseModel):
         )
 
 
-class RequestModel(BaseModel):
+class CallRequestModel(BaseModel):
     func_name: str
     kwargs: Dict[str, Any]
 
@@ -39,7 +39,7 @@ class CallStatus(Enum):
     SUCCESS = "Success"
 
 
-class ResultModel(BaseModel):
+class CallResultModel(BaseModel):
     """
     Easy way to create function safe call result return.
 
@@ -82,7 +82,7 @@ class ResultModel(BaseModel):
         return self.json()
 
 
-class ServerReturnModel(ResultModel):
+class ServerReturnModel(CallResultModel):
     """
     Easy way to create json response.
 
@@ -114,10 +114,10 @@ class ServerReturnModel(ResultModel):
     def passwd_check_fail(self) -> str:
         return self.fail("Password check not pass.")
 
-    def to_json(self) -> str:
-        """
-        Use fastapi jsonable encoder to
-        override the default json.dumps
-        """
+    # def to_json(self) -> str:
+    #     """
+    #     Use fastapi jsonable encoder to
+    #     override the default json.dumps
+    #     """
 
-        return jsonable_encoder(self.to_dict())
+    #     return jsonable_encoder(self.to_dict())

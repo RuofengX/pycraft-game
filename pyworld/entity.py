@@ -129,7 +129,7 @@ class Pickleable:
 
         status = self.__dict__.copy()  # Until now, the entity infomation.
 
-        pop_list: List[str] = []
+        pop_list = []
         for key in status.keys():
             if key[0] == "_":
                 pop_list.append(key)
@@ -141,6 +141,14 @@ class Pickleable:
     def __setstate__(self, state: Dict[str, Any]) -> None:
         self.__dict__.update(state)
         self.__static_init__()
+
+
+Pickleables = TypeVar("Pickleables", bound=Pickleable)
+
+
+def formatter(input: Pickleables) -> Pickleables:
+    rtn = pickle.loads(pickle.dumps(input))
+    return rtn
 
 
 class Entity(Pickleable):
@@ -274,6 +282,8 @@ FutureTick: TypeAlias = Callable[[Entity, Optional[Entity]], None]
 # Tick Method Type that would be called in future.
 
 Entities = TypeVar("Entities", bound=Entity)
+Entities_co = TypeVar("Entities_co", bound=Entity, covariant=True)
+Entities_con = TypeVar("Entities_con", bound=Entity, contravariant=True)
 # All subclasses of the Entity
 
 

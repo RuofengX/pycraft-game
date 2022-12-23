@@ -9,10 +9,13 @@ fastapi = "*"
 pydantic = "*"
 aiohttp = "*"
 dictdiffer = "*"
+uvicorn = "*"
 
 [dev-packages]
 objprint = "*"
 httpx = "*"
+black = "*"
+flake8 = "*"
 
 [requires]
 python_version = "3.11"

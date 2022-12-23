@@ -13,7 +13,7 @@ from threading import Lock
 from typing import Any, ClassVar, Dict, Generic, Optional, Self, Type, TypeVar
 
 from pyworld.control import ControlMixin, ControlResultModel
-from pyworld.datamodels.function_call import RequestModel
+from pyworld.datamodels.function_call import CallRequestModel
 from pyworld.world import Character, World
 
 
@@ -181,7 +181,7 @@ class CargoMixin(Character, Generic[Items]):
     def cargo_list_property(self) -> Dict[str, Any]:
         return self.cargo.ctrl_list_property()
 
-    def cargo_safe_call(self, data: RequestModel) -> ControlResultModel:
+    def cargo_safe_call(self, data: CallRequestModel) -> ControlResultModel:
         return self.cargo.ctrl_safe_call(data)
 
     def cargo_has_slot(self) -> bool:

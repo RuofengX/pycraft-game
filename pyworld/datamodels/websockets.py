@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, overload, List, Self
 from fastapi import WebSocket
 from pydantic import BaseModel
 
-from pyworld.datamodels.function_call import RequestModel, ExceptionModel
+from pyworld.datamodels.function_call import CallRequestModel, ExceptionModel
 from pyworld.control import ControlResultModel
 
 
@@ -177,19 +177,21 @@ class WSPayload(Payload):
         ...
 
     @overload
-    def cmd(self, *, client_req: RequestModel) -> WSPayload:
+    def cmd(self, *, client_req: CallRequestModel) -> WSPayload:
         """For client to order the command."""
         ...
 
     def cmd(self, **kwargs) -> WSPayload:
         self.command = WSCommand.CMD
-        match kwargs.keys():
+        k = list(kwargs.keys())[0]  # HACK: Use more pythonic way.
+        v = list(kwargs.values())[0]
+        match k:
             case ["server_resp"]:
                 self.stage = WSStage.SERVER_PREPARE
-                self.detail = kwargs["detail"]
+                self.detail = v["detail"]
             case ["client_req"]:
                 self.stage = WSStage.CLIENT_PREPARE
-                patch: RequestModel = kwargs["req_patch"]
+                patch: CallRequestModel = v["req_patch"]
                 self.detail = patch.dict()
         return self
 
