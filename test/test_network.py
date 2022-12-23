@@ -5,6 +5,7 @@ import unittest
 
 from fastapi.testclient import TestClient
 from pyworld.datamodels.function_call import CallRequestModel
+from pyworld.modules.equipments.radar import Radar
 
 from pyworld.modules.item import Item
 from pyworld.player import Player
@@ -58,14 +59,19 @@ class TestServer(unittest.TestCase):
 
     def test_ctrl_get_property(self) -> None:
         eid = self.server.core.register(**self.params).eid
+        player_s: Player = self.world.world_get_entity(eid)
+        assert player_s is not None
+        radar = self.world.world_new_entity(
+            cls=Radar,
+        )
+        player_s._equip_add(radar)
         response = self.client.get("/ctrl/get-property", params=self.params)
         assert response.status_code == 200
         assert response.json()["status"] == "Success"
         player_c = response.json()["detail"]
-        player_s = self.world.entity_dict[eid].get_state()
         compare_list = ["uuid", "eid", "username", "passwd"]
         for entry in compare_list:
-            assert player_s[entry] == player_c[entry]
+            assert player_s.get_state()[entry] == player_c[entry]
 
     def test_ctrl_get_method(self) -> None:
         def you_got_me():
@@ -92,9 +98,12 @@ class TestServer(unittest.TestCase):
         assert "_not_see_me" not in player_method_c
         assert "This is test." == player_method_c["you_got_me"]
 
+        delattr(player_s, "you_got_me")
+        delattr(player_s, "_not_see_me")
+
     def test_call(self) -> None:
         eid = self.server.core.register(**self.params).eid
-        player_s = self.world.world_get_entity(eid)
+        player_s: Player = self.world.world_get_entity(eid)
 
         def echo(input: str) -> str:
             return input
@@ -109,7 +118,6 @@ class TestServer(unittest.TestCase):
         result = response.json()
         assert result["status"] == "Success"
         assert result["detail"]["detail"] == "Hello World"
-    
+
     def test_ws(self) -> None:
         pass
-
