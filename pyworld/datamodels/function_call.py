@@ -27,7 +27,7 @@ class ExceptionModel(BaseModel):
         )
 
 
-class RequestModel(BaseModel):
+class CallRequestModel(BaseModel):
     func_name: str
     kwargs: Dict[str, Any]
 
@@ -39,7 +39,7 @@ class CallStatus(Enum):
     SUCCESS = "Success"
 
 
-class ResultModel(BaseModel):
+class CallResultModel(BaseModel):
     """
     Easy way to create function safe call result return.
 
@@ -82,7 +82,7 @@ class ResultModel(BaseModel):
         return self.json()
 
 
-class ServerReturnModel(ResultModel):
+class ServerReturnModel(CallResultModel):
     """
     Easy way to create json response.
 

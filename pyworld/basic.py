@@ -103,7 +103,7 @@ class Vector:
             return False
 
     def __repr__(self):
-        return str((self.x, self.y, self.z))
+        return self.x, self.y, self.z
 
     def __getstate__(self):
         return {

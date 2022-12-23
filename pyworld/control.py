@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict
 
-from pyworld.datamodels.function_call import RequestModel, ResultModel
+from pyworld.datamodels.function_call import CallRequestModel, CallResultModel
 from pyworld.entity import Entity
 
 
-class ControlResultModel(ResultModel):
+class ControlResultModel(CallResultModel):
     pass
 
 
@@ -38,8 +38,7 @@ class ControlMixin(Entity):
                     mtd = getattr(self, func_name)
                     if callable(mtd):
                         docs = getattr(self, func_name).__doc__
-                        docs = str(docs)
-                        docs = docs.strip()
+                        docs = str(docs).strip()
                         rtn[func_name] = docs
         return rtn
 
@@ -52,7 +51,7 @@ class ControlMixin(Entity):
         with self._tick_lock:
             return self.get_state()
 
-    def ctrl_safe_call(self, data: RequestModel) -> ControlResultModel:
+    def ctrl_safe_call(self, data: CallRequestModel) -> ControlResultModel:
         """
         Call a func list in self.ctrl_list().
         func_name is the target method's name,
@@ -61,13 +60,16 @@ class ControlMixin(Entity):
 
         rtn = ControlResultModel(stage='ctrl_safe_call')
 
-        result: str = ''
+        result: str | Dict[Any, Any] = ''
 
         try:
             if data.func_name in self.ctrl_list_method():
                 method: Callable[..., Any] = getattr(self, data.func_name)
-                result = str(method(**data.kwargs))
-                rtn.success(message=str(result))
+                result = method(**data.kwargs)
+                if isinstance(result, dict):
+                    rtn.success(message=result)
+                else:
+                    rtn.success(message=str(result))
         except Exception as e:
             rtn.fail(detail=str(result), e=e)
         finally:
