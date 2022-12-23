@@ -1,7 +1,0 @@
-﻿numpy
-objprint
-fastapi
-pydantic
-aiohttp
-dictdiffer
-httpx

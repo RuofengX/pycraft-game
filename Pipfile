@@ -1,0 +1,19 @@
+[[source]]
+url = "https://mirrors.aliyun.com/pypi/simple/"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+numpy = "*"
+fastapi = "*"
+pydantic = "*"
+aiohttp = "*"
+dictdiffer = "*"
+
+[dev-packages]
+objprint = "*"
+httpx = "*"
+
+[requires]
+python_version = "3.11"
+python_full_version = "3.11.1"

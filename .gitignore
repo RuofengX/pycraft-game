@@ -1,6 +1,7 @@
 .vscode
 .VSCodeCounter
 *.bin
+Pipfile.lock
 tags
 .flake8
 # Byte-compiled / optimized / DLL files
