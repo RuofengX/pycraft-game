@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import base64
+import json
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Self, overload
 
 # from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
+
+from pyworld.basic import Jsonable
 
 if TYPE_CHECKING:
     from pyworld.entity import Entity
@@ -13,12 +16,30 @@ if TYPE_CHECKING:
 Detail = Dict[str, Any] | str
 
 
+class IntelliDump(json.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if hasattr(o, '__getstate__'):
+            return o.__getstate__()
+        else:
+            return super().default(o)
+
+
 class ExceptionModel(BaseModel):
     exception_name: str = ""
     exception_detail: Detail | str = ""
 
+    @overload
     @staticmethod
-    def from_exception(e: Exception | None) -> Optional[ExceptionModel]:
+    def from_exception(e: None) -> None:
+        ...
+
+    @overload
+    @staticmethod
+    def from_exception(e: Exception) -> ExceptionModel:
+        ...
+
+    @staticmethod
+    def from_exception(e: Optional[Exception]) -> Optional[ExceptionModel]:
         if e is None:
             return None
         return ExceptionModel(
@@ -38,6 +59,9 @@ class CallStatus(Enum):
     WARNING = "Warning"
     SUCCESS = "Success"
 
+    def __str__(self) -> str:
+        return self.value
+
 
 class CallResultModel(BaseModel):
     """
@@ -55,25 +79,30 @@ class CallResultModel(BaseModel):
     detail: Detail = ""
     exception: Optional[ExceptionModel] = None
 
-    def fail(self, detail: Detail, e: Optional[Exception] = None) -> str:
+    class Config:
+        json_encoders = {
+            Jsonable: IntelliDump().default,
+        }
+
+    def fail(self, detail: Detail, e: Optional[Exception] = None) -> Self:
         """Create a fatal respond with detail=message."""
         self.status = CallStatus.FAIL
         self.detail = detail
         self.exception = ExceptionModel.from_exception(e)
-        return self.to_json()
+        return self
 
-    def warning(self, message: Detail, e: Optional[Exception] = None) -> str:
+    def warning(self, message: Detail, e: Optional[Exception] = None) -> Self:
         """Create a warning respond with detail=message."""
         self.status = CallStatus.WARNING
         self.detail = message
         self.exception = ExceptionModel.from_exception(e)
-        return self.to_json()
+        return self
 
-    def success(self, message: str | Detail) -> str:
+    def success(self, message: str | Detail) -> Self:
         """Create a success respond with detail=message."""
         self.status = CallStatus.SUCCESS
         self.detail = message
-        return self.to_json()
+        return self
 
     def to_dict(self) -> Dict[str, str | Detail]:
         return self.dict()
@@ -82,7 +111,7 @@ class CallResultModel(BaseModel):
         return self.json()
 
 
-class ServerReturnModel(CallResultModel):
+class ServerResultModel(CallResultModel):
     """
     Easy way to create json response.
 
@@ -91,7 +120,7 @@ class ServerReturnModel(CallResultModel):
 
     stage: str = "Server"
 
-    def entity(self, entity: Entity) -> str:
+    def entity(self, entity: Entity) -> Self:
         """
         Create a success respond
         with detail={'dict':..., 'obj_pickle':...}.
@@ -103,21 +132,13 @@ class ServerReturnModel(CallResultModel):
             "dict": entity.get_state(),
             "obj_pickle_base64": str(obj_pickle_base64, encoding="utf-8"),
         }
-        return self.to_json()
+        return self
 
-    def name_not_valid(self) -> str:
+    def name_not_valid(self) -> Self:
         return self.fail("Username not registered yet.")
 
-    def name_already_used(self) -> str:
+    def name_already_used(self) -> Self:
         return self.fail("Username already used.")
 
-    def passwd_check_fail(self) -> str:
+    def passwd_check_fail(self) -> Self:
         return self.fail("Password check not pass.")
-
-    # def to_json(self) -> str:
-    #     """
-    #     Use fastapi jsonable encoder to
-    #     override the default json.dumps
-    #     """
-
-    #     return jsonable_encoder(self.to_dict())

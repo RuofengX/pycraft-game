@@ -3,7 +3,7 @@ from typing import Any, Dict, NoReturn, Optional
 
 from aiohttp import ClientSession
 
-from pyworld.datamodels.function_call import ServerReturnModel
+from pyworld.datamodels.function_call import ServerResultModel
 
 # from pyworld.datamodels.websockets import WSPayload
 
@@ -40,6 +40,6 @@ class Client(ClientSession):
             '?username={username}&password={password}'
         async with self.get(url=uri) as response:
             assert response.status == 200, response.status
-            return ServerReturnModel(
+            return ServerResultModel(
                 **(await response.json())
             ).to_dict()

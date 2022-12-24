@@ -7,7 +7,7 @@ from game import Core
 from pyworld.datamodels.function_call import (
     CallRequestModel,
     CallResultModel,
-    ServerReturnModel,
+    ServerResultModel,
 )
 from pyworld.datamodels.property_cache import PropertyCache
 from pyworld.datamodels.websockets import WSCommand, WSPayload, WSStage
@@ -31,18 +31,18 @@ class Server(FastAPI):
         async def player_get_info(username: str, passwd: str):
             """Get player info."""
 
-            rtn = ServerReturnModel()
+            rtn = ServerResultModel()
             if not self.core.check_login(username, passwd):
                 return rtn.passwd_check_fail()
 
             p = self.core.player_dict[username]
 
-            return ServerReturnModel().entity(p)
+            return ServerResultModel().entity(p)
 
         @self.get(path="/register")
-        async def register(username: str, passwd: str):
+        async def register(username: str, passwd: str) -> ServerResultModel:
             """Register new player."""
-            rtn = ServerReturnModel()
+            rtn = ServerResultModel()
 
             if username in self.core.player_dict:
                 return rtn.name_already_used()
@@ -51,9 +51,9 @@ class Server(FastAPI):
             return rtn.entity(p)
 
         @self.get(path="/ctrl/get-method")
-        async def ctrl_get_method(username: str, passwd: str):
+        async def ctrl_get_method(username: str, passwd: str) -> ServerResultModel:
             """Get all controllable methods names and docs."""
-            rtn = ServerReturnModel()
+            rtn = ServerResultModel()
 
             if not self.core.check_login(username, passwd):
                 return rtn.passwd_check_fail()
@@ -63,10 +63,10 @@ class Server(FastAPI):
             return rtn.success(p.ctrl_list_method())
 
         @self.get(path="/ctrl/get-property")
-        async def ctrl_get_properties(username: str, passwd: str):
+        async def ctrl_get_properties(username: str, passwd: str) -> ServerResultModel:
             """Get all controllable properties."""
 
-            rtn = ServerReturnModel()
+            rtn = ServerResultModel()
 
             if not self.core.check_login(username, passwd):
                 return rtn.passwd_check_fail()
@@ -76,8 +76,10 @@ class Server(FastAPI):
             return rtn.success(p.ctrl_list_property())
 
         @self.post(path="/ctrl/call")
-        async def ctrl_call(*, username: str, passwd: str, body: CallRequestModel):
-            rtn = ServerReturnModel()
+        async def ctrl_call(
+            *, username: str, passwd: str, body: CallRequestModel
+        ) -> ServerResultModel:
+            rtn = ServerResultModel()
 
             if not self.core.check_login(username, passwd):
                 rtn.passwd_check_fail()
@@ -89,7 +91,7 @@ class Server(FastAPI):
 
             result: CallResultModel = p.ctrl_safe_call(body)
             rtn.success(result.to_dict())
-            return rtn.to_json()
+            return rtn
 
         @self.websocket(path="/ctrl/stream")
         async def ctrl_stream(

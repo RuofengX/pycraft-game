@@ -1,6 +1,6 @@
 from enum import Enum
 from threading import Lock
-from typing import Generic, List, Optional, Type, TypeVar, cast
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, cast
 
 from pyworld.control import ControlMixin
 from pyworld.entity import Entity, with_instance_lock
@@ -38,7 +38,7 @@ class Equipment(Generic[Requirement], ControlMixin, Entity):
                 self.status = EquipStatus.CHECK_FAIL
                 return False
 
-    def _on_equip(self, belong: 'EquipmentMixin') -> None:
+    def _on_equip(self, belong: "EquipmentMixin") -> None:
         self.owner = belong
         self._refresh_status()
 
@@ -46,7 +46,7 @@ class Equipment(Generic[Requirement], ControlMixin, Entity):
         self.owner = None
         self._refresh_status()
 
-    def _check_require(self, belong: 'EquipmentMixin') -> bool:
+    def _check_require(self, belong: "EquipmentMixin") -> bool:
         """
         Check input entity is satisfy for self.require_module
         """
@@ -172,7 +172,7 @@ class EquipmentMixin(Entity):
 
     #  Use @with_instance_lock() will broke the generic system.
     def _equip_get(
-        self, target: str | Type[Equipments] , index: int = 0
+        self, target: str | Type[Equipments], index: int = 0
     ) -> Optional[Equipments]:
 
         with self.__equip_list_lock:
@@ -188,3 +188,6 @@ class EquipmentMixin(Entity):
                 return None
 
             return stack[index]
+
+    def _equip_list_all(self) -> List[Dict[str, Any]]:
+        return [equip.__getstate__() for equip in self.equip_list]

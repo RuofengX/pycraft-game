@@ -86,6 +86,18 @@ class TestEquipBase(unittest.TestCase):
         assert self.ent._equip_get(TestModule, 2) == eqp_3
         assert self.ent._equip_get("TestModule", 2) == eqp_3
 
+    def test_list(self) -> None:
+        eqp = TestModule()
+        eqp_2 = TestModule()
+        eqp_3 = TestModule()
+        assert self.ent._equip_add(eqp)
+        assert self.ent._equip_add(eqp_2)
+        assert self.ent._equip_add(eqp_3)
+
+        uuid_list = [ent.uuid for ent in [eqp, eqp_2, eqp_3]]
+        for eq in self.ent._equip_list_all():
+            assert eq['uuid'] in uuid_list
+
 
 class TestRadar(unittest.TestCase):
     class NoPosition(EquipmentMixin, Entity):
@@ -145,9 +157,12 @@ class TestRadar(unittest.TestCase):
         assert self.radar.scan_result == [self.position0, self.position1]
 
         self.radar.radius = 2.1
-        assert self.ct.world.world_del_entity(
-            self.ct.world.world_get_entity_index(self.moving0)
-        ) == self.moving0
+        assert (
+            self.ct.world.world_del_entity(
+                self.ct.world.world_get_entity_index(self.moving0)
+            )
+            == self.moving0
+        )
         self.radar._radar_tick(self.ct.world)
         assert self.radar.scan_result == [
             self.position0,

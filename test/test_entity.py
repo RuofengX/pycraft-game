@@ -3,7 +3,10 @@ import unittest
 from threading import Lock
 from typing import Optional
 
+from pyworld.basic import Vector
 from pyworld.entity import Entity, with_instance_lock
+from pyworld.modules.equipments.radar import Radar
+from pyworld.player import Player
 from pyworld.world import World
 
 
@@ -92,3 +95,22 @@ class TestPickleSystem(TestEntity):
         pickle_b = pickle.dumps(self.ent)
         self.ent = pickle.loads(pickle_b)
         # TODO
+
+
+class TestPlayer(unittest.TestCase):
+    def setUp(self):
+        self.world = World()
+        self.player = self.world.world_new_entity(
+            cls=Player,
+            pos=Vector(0, 0, 0),
+            username='test',
+            passwd='1',
+            world=self.world,
+        )
+        radar = self.world.world_new_entity(
+            cls=Radar,
+        )
+        self.player._equip_add(radar)
+
+    def test_get_property(self):
+        assert str(self.player.get_state()["position"]) == "(0, 0, 0)"

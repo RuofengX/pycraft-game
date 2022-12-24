@@ -4,9 +4,9 @@ import pickle
 import unittest
 
 from fastapi.testclient import TestClient
+
 from pyworld.datamodels.function_call import CallRequestModel
 from pyworld.modules.equipments.radar import Radar
-
 from pyworld.modules.item import Item
 from pyworld.player import Player
 from server import Server

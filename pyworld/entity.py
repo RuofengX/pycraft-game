@@ -13,6 +13,7 @@ from typing import (
     Concatenate,
     Dict,
     List,
+    NamedTuple,
     Optional,
     ParamSpec,
     Protocol,
@@ -26,9 +27,9 @@ from typing import (
 )
 
 from objprint import op
-from pydantic import BaseModel
 
-from pyworld.datamodels.function_call import CallStatus, ExceptionModel
+from pyworld.basic import Pickleable, Pickleables
+from pyworld.datamodels.function_call import ExceptionModel
 
 if TYPE_CHECKING:
     from pyworld.world import World
@@ -76,74 +77,16 @@ def with_instance_lock(lock_name: str, debug: bool = False):
     return run_with_lock
 
 
-class TickLogModel(BaseModel):
+class TickLog(NamedTuple):
     age: int
-    status: CallStatus = CallStatus.NOT_SET
-    exception_info: Optional[ExceptionModel] = None
+    status: bool = True
+    exception_info: Optional[Dict[str, str]] = None
 
-    def exception(self, e: Exception) -> None:
-        self.status = CallStatus.FAIL
-        self.exception_info = ExceptionModel.from_exception(e)
+    def exception(self, e: Exception) -> Self:
+        return TickLog(self.age, False, ExceptionModel.from_exception(e).dict())
 
-    def success(self) -> None:
-        self.status = CallStatus.SUCCESS
-
-
-class Pickleable:
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__static_called_check: bool = False
-        self.__static_init__()
-        if not self.__static_called_check:
-            raise SyntaxError("Some mixins' __static_init__ methods not call super()!")
-
-    def __static_init__(self) -> None:
-        """
-        Will be called when __init__ and loading from pickle bytes.
-
-        All properties start with `_` will be delete when pickling,
-        and re-init after un-pickling. Since unpickle processing won't
-        run __init__ again, so all the property(cannot be pickled) should
-        defined in this method to ensure a proper re-init.
-
-        The save process only happened when tick is done, so all Lock() instance
-        is released when pickling.
-
-        Very useful for those property that cannot be pickled.
-        """
-
-        self.__static_called_check = (
-            True  # True means all __static_init__ in mro call their super.
-        )
-
-    def __getstate__(self) -> Dict[str, Any]:
-        """
-        Implement pickle protocol.
-
-        Throw hidden properties named begun with `_`
-        which cannot be serialized or jsonable.
-
-        Those non-picklable properties should be set in __static_init__ method
-        and will be automatically initiated after loading from binary.
-        """
-
-        status = self.__dict__.copy()  # Until now, the entity infomation.
-
-        pop_list = []
-        for key in status.keys():
-            if key[0] == "_":
-                pop_list.append(key)
-        for key in pop_list:
-            status.pop(key)
-
-        return status
-
-    def __setstate__(self, state: Dict[str, Any]) -> None:
-        self.__dict__.update(state)
-        self.__static_init__()
-
-
-Pickleables = TypeVar("Pickleables", bound=Pickleable)
+    def success(self) -> Self:
+        return self
 
 
 def formatter(input: Pickleables) -> Pickleables:
@@ -171,8 +114,8 @@ class Entity(Pickleable):
         self.age = 0
         self.uuid: int = uuid.uuid4().int
 
-        self.tick_log: List[TickLogModel] = []
-        self.last_tick_log: Optional[TickLogModel] = None
+        self.tick_log: List[TickLog] = []
+        self.last_tick_log: Optional[TickLog] = None
 
     def __static_init__(self) -> None:
 
@@ -190,6 +133,7 @@ class Entity(Pickleable):
 
     def get_state(self) -> Dict[str, Any]:
         """Return the entity state dict."""
+        # return {k: str(v) for k, v in pre_pickle(self.__dict__).items()}
         return self.__getstate__()
 
     def get_state_b(self) -> bytes:
@@ -226,7 +170,7 @@ class Entity(Pickleable):
         """
 
         self._world = belong
-        log = TickLogModel(
+        log = TickLog(
             age=self.age,
         )
         try:
@@ -245,12 +189,11 @@ class Entity(Pickleable):
                             target(belong)
             # AFTER
             self._tick_last(belong)
-            log.status = CallStatus.SUCCESS
+            self.last_tick_log = log.success()
 
         except Exception as e:
-            log.exception(e)
+            self.last_tick_log = log.exception(e)
         finally:
-            self.last_tick_log = log
             if self._log_flag:
                 self.tick_log.append(log)
             self.age += 1
@@ -272,7 +215,7 @@ class Entity(Pickleable):
         return self.uuid
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}({self.uuid})"
+        return self.__repr__()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}<{self.uuid}>"

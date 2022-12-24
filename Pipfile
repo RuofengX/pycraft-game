@@ -10,6 +10,7 @@ pydantic = "*"
 aiohttp = "*"
 dictdiffer = "*"
 uvicorn = "*"
+objprint = "*"
 
 [dev-packages]
 objprint = "*"

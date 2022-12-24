@@ -144,11 +144,10 @@ class Cargo(ControlMixin, UserDict[str, ItemStack[Items]]):
         return sum((i.num for i in self.values()))
 
     def _append(self, o: ItemStack[Items]) -> None:
-        for name in self.data:
-            if name == o.name:
-                # if: Cargo already has the same-named ItemStack
-                self.data[name]._gather(o)
-                return
+        if o.name in self.data:
+            # if: Cargo already has the same-named ItemStack
+            self.data[o.name]._gather(o)
+            return
 
         # else: Cargo not yet has the same-named ItemStack
         self.data[o.name] = o
