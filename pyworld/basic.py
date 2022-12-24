@@ -187,4 +187,3 @@ class Vector(Pickleable):
 
 Vec3 = Vector
 Vec = Vector
-

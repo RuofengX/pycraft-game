@@ -59,9 +59,6 @@ class CallStatus(Enum):
     WARNING = "Warning"
     SUCCESS = "Success"
 
-    def __str__(self) -> str:
-        return self.value
-
 
 class CallResultModel(BaseModel):
     """
@@ -81,6 +78,7 @@ class CallResultModel(BaseModel):
 
     class Config:
         json_encoders = {
+            Enum: lambda e: e.value,
             Jsonable: IntelliDump().default,
         }
 
