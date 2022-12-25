@@ -50,6 +50,19 @@ class Server(FastAPI):
             p = self.core.register(username, passwd)
             return ServerResultModel().entity(p)
 
+        @self.get(path="/ctrl/list-property")
+        async def ctrl_list_properties(username: str, passwd: str) -> ServerResultModel:
+            """Get all controllable properties."""
+
+            rtn = ServerResultModel()
+
+            if not self.core.check_login(username, passwd):
+                return rtn.passwd_check_fail()
+
+            p: Player = self.core.player_dict[username]
+
+            return rtn.success(p.ctrl_list_property())
+
         @self.get(path="/ctrl/list-method")
         async def ctrl_list_method(username: str, passwd: str) -> ServerResultModel:
             """Get all controllable methods names and docs."""
@@ -81,19 +94,6 @@ class Server(FastAPI):
                 rtn.fail(f"Key {key_name} not found.", e)
             finally:
                 return rtn
-
-        @self.get(path="/ctrl/list-property")
-        async def ctrl_list_properties(username: str, passwd: str) -> ServerResultModel:
-            """Get all controllable properties."""
-
-            rtn = ServerResultModel()
-
-            if not self.core.check_login(username, passwd):
-                return rtn.passwd_check_fail()
-
-            p: Player = self.core.player_dict[username]
-
-            return rtn.success(p.ctrl_list_property())
 
         @self.post(path="/ctrl/call")
         async def ctrl_call(
