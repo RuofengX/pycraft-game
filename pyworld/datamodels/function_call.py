@@ -120,11 +120,7 @@ class ServerResultModel(CallResultModel):
         """
 
         obj_pickle_base64 = base64.b64encode(entity.get_state_b())
-        detail = {
-            "dict": entity.get_state(),
-            "obj_pickle_base64": str(obj_pickle_base64, encoding="utf-8"),
-        }
-        return self.success(detail)
+        return self.success(str(obj_pickle_base64))
 
     def name_not_valid(self) -> Self:
         return self.fail("Username not registered yet.")

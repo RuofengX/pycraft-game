@@ -3,14 +3,16 @@ from __future__ import annotations
 import itertools
 import operator
 import random
-from typing import Any, Dict, Optional, TypeVar, final
+from typing import Any, Dict, List, Optional, TypeVar, final
 
 import numpy as np
 
 
-def pre_pickle(d: Dict[str, Any]) -> Dict[str, Any]:
+def pre_pickle(d: Dict[str, Any], extra_pop: List[str] = []) -> Dict[str, Any]:
     rtn = d.copy()
     pop_list = []
+    pop_list.extend(extra_pop)
+
     for key in rtn.keys():
         if key[0] == "_":
             pop_list.append(key)

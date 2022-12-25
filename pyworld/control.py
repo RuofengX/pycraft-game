@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Dict
+import base64
+import pickle
+from typing import Any, Callable, Dict, NoReturn
 
 from pyworld.datamodels.function_call import CallRequestModel, CallResultModel
 from pyworld.entity import Entity
@@ -49,7 +51,22 @@ class ControlMixin(Entity):
         """
 
         with self._tick_lock:
-            return self.get_state()
+            return {k: str(v) for k, v in self.get_state().items()}
+
+    def ctrl_get_property(self, name: str) -> str | NoReturn:
+        """
+        Return the value of given property
+        Use base64 and pickle.
+
+        Raise KeyError if name is invalid.
+        """
+        if name in self._dir_mask:
+            raise KeyError(name)
+
+        with self._tick_lock:
+            return base64.b64encode(pickle.dumps(self.__getstate__()[name])).decode(
+                "utf-8"
+            )
 
     def ctrl_safe_call(self, data: CallRequestModel) -> ControlResultModel:
         """
@@ -58,9 +75,9 @@ class ControlMixin(Entity):
         use **kwargs attachment as the arguments.
         """
 
-        rtn = ControlResultModel(stage='ctrl_safe_call')
+        rtn = ControlResultModel(stage="ctrl_safe_call")
 
-        result: str | Dict[Any, Any] = ''
+        result: str | Dict[Any, Any] = ""
 
         try:
             if data.func_name in self.ctrl_list_method():

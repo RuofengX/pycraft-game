@@ -28,7 +28,7 @@ from typing import (
 from objprint import op
 from pydantic import BaseModel
 
-from pyworld.basic import Pickleable
+from pyworld.basic import Pickleable, pre_pickle
 from pyworld.datamodels.function_call import ExceptionModel
 from pyworld.datamodels.status_code import CallStatus
 
@@ -130,13 +130,17 @@ class Entity(Pickleable):
 
         return super().__static_init__()
 
-    def get_state(self) -> Dict[str, str]:
-        """Return the entity state dict."""
-        return {k: str(v) for k, v in self.__getstate__().items()}
-        # return self.__getstate__()
+    def get_state(self) -> Dict[str, Any]:
+        """Return the readable entity state."""
+
+        user_valid_dict = pre_pickle(
+            self.__getstate__(), extra_pop=list(self._dir_mask)
+        )
+        return {k: v for k, v in user_valid_dict.items()}
 
     def get_state_b(self) -> bytes:
         """Return the entity pickle binary."""
+
         return pickle.dumps(self)
 
     def _tick_first(self, belong: Optional[World]) -> None:

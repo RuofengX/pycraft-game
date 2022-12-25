@@ -17,7 +17,7 @@ class Equipment(Generic[Requirement], ControlMixin, Entity):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.status = EquipStatus.NO_BELONG
-        self.owner: Optional[EquipmentMixin] = None
+        self.owner: Optional['EquipmentMixin'] = None
 
     def _refresh_status(self) -> bool:
         """Return True if ready"""
@@ -40,7 +40,7 @@ class Equipment(Generic[Requirement], ControlMixin, Entity):
         self.owner = None
         self._refresh_status()
 
-    def _check_require(self, belong: "EquipmentMixin") -> bool:
+    def _check_require(self, owner: 'EquipmentMixin') -> bool:
         """
         Check input entity is satisfy for self.require_module
         """
@@ -50,7 +50,7 @@ class Equipment(Generic[Requirement], ControlMixin, Entity):
         if self.require_module is None:
             rtn = True
         else:
-            rtn = isinstance(belong, self.require_module)
+            rtn = isinstance(owner, self.require_module)
 
         return rtn
 
@@ -67,8 +67,9 @@ class EquipmentMixin(Entity):
         self.equip_list: List[Equipment] = []
 
     def __static_init__(self) -> None:
+        super().__static_init__()
         self.__equip_list_lock = Lock()
-        return super().__static_init__()
+        self._dir_mask.add('equip_list')
 
     def __get_stack(
         self, equip: str | Equipments | Type[Equipments]

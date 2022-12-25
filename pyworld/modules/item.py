@@ -172,6 +172,7 @@ class CargoMixin(Character, Generic[Items]):
 
     def __static_init__(self) -> None:
         super().__static_init__()
+        self._dir_mask.add('cargo')
         self.__cargo_lock: Lock = Lock()
 
     def cargo_list_method(self) -> Dict[str, str]:

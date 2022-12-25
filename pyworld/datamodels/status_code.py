@@ -15,9 +15,9 @@ class CallStatus(IntFlag):
 
 
 class EquipStatus(Enum):
-    OK = "Equiped by an owner. Require satisfied. Ready to work."
-    CHECK_FAIL = "Some check not pass. Equipment may not work."
-    NO_BELONG = "Equip do not have Owner"
+    OK = 1  # "Equiped by an owner. Require satisfied. Ready to work."
+    CHECK_FAIL = 2  # "Some check not pass. Equipment may not work."
+    NO_BELONG = 3  # "Equip do not have Owner"
 
     def __repr__(self) -> str:
         return str(self.name)

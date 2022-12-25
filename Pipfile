@@ -17,6 +17,7 @@ objprint = "*"
 httpx = "*"
 black = "*"
 flake8 = "*"
+jsonpickle = "*"
 
 [requires]
 python_version = "3.11"

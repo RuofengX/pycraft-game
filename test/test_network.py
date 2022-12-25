@@ -1,7 +1,7 @@
-import base64
 import os
-import pickle
 import unittest
+import base64
+import pickle
 
 from fastapi.testclient import TestClient
 
@@ -40,23 +40,29 @@ class TestServer(unittest.TestCase):
         assert response.status_code == 200
         assert response.json()["status"] == CallStatus.SUCCESS.value
         assert self.world.entity_dict != {}
-        eid = response.json()["detail"]["dict"]["eid"]
+        eid = response.json()["detail"]["eid"]
 
-        player_s = self.world.world_get_entity(eid).get_state()
-        player_c = response.json()["detail"]["dict"]
+        player_s = self.world.world_get_entity(int(eid)).get_state()
+        player_c = response.json()["detail"]
         compare_list = ["uuid", "eid", "username", "passwd"]
         for entry in compare_list:
             assert player_s[entry] == player_c[entry]
 
-        player_c_bytes = pickle.loads(
-            base64.b64decode(
-                bytes(response.json()["detail"]["obj_pickle_base64"], encoding="utf-8")
-            )
+    def test_ctrl_list_property(self) -> None:
+        eid = self.server.core.register(**self.params).eid
+        player_s: Player = self.world.world_get_entity(eid)
+        assert player_s is not None
+        radar = self.world.world_new_entity(
+            cls=Radar,
         )
-        assert isinstance(player_c_bytes, Player)
+        player_s._equip_add(radar)
+        response = self.client.get("/ctrl/list-property", params=self.params)
+        assert response.status_code == 200
+        assert response.json()["status"] == CallStatus.SUCCESS.value
+        player_c = response.json()["detail"]
         compare_list = ["uuid", "eid", "username", "passwd"]
         for entry in compare_list:
-            assert player_s[entry] == player_c_bytes.get_state()[entry]
+            assert player_s.get_state()[entry] == player_c[entry]
 
     def test_ctrl_get_property(self) -> None:
         eid = self.server.core.register(**self.params).eid
@@ -65,14 +71,17 @@ class TestServer(unittest.TestCase):
         radar = self.world.world_new_entity(
             cls=Radar,
         )
-        player_s._equip_add(radar)
-        response = self.client.get("/ctrl/get-property", params=self.params)
+        assert player_s._equip_add(radar)
+        response = self.client.get("/ctrl/get-property/equip_list", params=self.params)
         assert response.status_code == 200
-        assert response.json()["status"] == CallStatus.SUCCESS.value
-        player_c = response.json()["detail"]
-        compare_list = ["uuid", "eid", "username", "passwd"]
-        for entry in compare_list:
-            assert player_s.get_state()[entry] == player_c[entry]
+        assert response.json()['status'] == 5
+
+        response = self.client.get("/ctrl/get-property/uuid", params=self.params)
+        assert response.status_code == 200
+        assert response.json()['status'] == 3
+        uuid_b = base64.decodebytes(response.json()['detail'].encode('utf-8'))
+        uuid = pickle.loads(uuid_b)
+        assert uuid == player_s.uuid
 
     def test_ctrl_get_method(self) -> None:
         def you_got_me():
