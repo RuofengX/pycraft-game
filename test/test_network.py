@@ -6,6 +6,7 @@ import unittest
 from fastapi.testclient import TestClient
 
 from pyworld.datamodels.function_call import CallRequestModel
+from pyworld.datamodels.status_code import CallStatus
 from pyworld.modules.equipments.radar import Radar
 from pyworld.modules.item import Item
 from pyworld.player import Player
@@ -37,7 +38,7 @@ class TestServer(unittest.TestCase):
     def test_register(self) -> None:
         response = self.client.get("/register", params=self.params)
         assert response.status_code == 200
-        assert response.json()["status"] == "Success"
+        assert response.json()["status"] == CallStatus.SUCCESS.value
         assert self.world.entity_dict != {}
         eid = response.json()["detail"]["dict"]["eid"]
 
@@ -67,7 +68,7 @@ class TestServer(unittest.TestCase):
         player_s._equip_add(radar)
         response = self.client.get("/ctrl/get-property", params=self.params)
         assert response.status_code == 200
-        assert response.json()["status"] == "Success"
+        assert response.json()["status"] == CallStatus.SUCCESS.value
         player_c = response.json()["detail"]
         compare_list = ["uuid", "eid", "username", "passwd"]
         for entry in compare_list:
@@ -91,7 +92,7 @@ class TestServer(unittest.TestCase):
 
         response = self.client.get("/ctrl/get-method", params=self.params)
         assert response.status_code == 200
-        assert response.json()["status"] == "Success"
+        assert response.json()["status"] == CallStatus.SUCCESS.value
         player_method_c = response.json()["detail"]
 
         assert "you_got_me" in player_method_c
@@ -116,7 +117,7 @@ class TestServer(unittest.TestCase):
         )
         assert response.status_code == 200
         result = response.json()
-        assert result["status"] == "Success"
+        assert response.json()["status"] == CallStatus.SUCCESS.value
         assert result["detail"]["detail"] == "Hello World"
 
     def test_ws(self) -> None:

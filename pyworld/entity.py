@@ -13,7 +13,6 @@ from typing import (
     Concatenate,
     Dict,
     List,
-    NamedTuple,
     Optional,
     ParamSpec,
     Protocol,
@@ -27,9 +26,11 @@ from typing import (
 )
 
 from objprint import op
+from pydantic import BaseModel
 
-from pyworld.basic import Pickleable, Pickleables
+from pyworld.basic import Pickleable
 from pyworld.datamodels.function_call import ExceptionModel
+from pyworld.datamodels.status_code import CallStatus
 
 if TYPE_CHECKING:
     from pyworld.world import World
@@ -77,21 +78,19 @@ def with_instance_lock(lock_name: str, debug: bool = False):
     return run_with_lock
 
 
-class TickLog(NamedTuple):
+class TickLogModel(BaseModel):
     age: int
-    status: bool = True
-    exception_info: Optional[Dict[str, str]] = None
+    status: CallStatus = CallStatus.INIT
+    exception_info: Optional[ExceptionModel] = None
 
     def exception(self, e: Exception) -> Self:
-        return TickLog(self.age, False, ExceptionModel.from_exception(e).dict())
-
-    def success(self) -> Self:
+        self.status = CallStatus.FAIL
+        self.exception_info = ExceptionModel.from_exception(e)
         return self
 
-
-def formatter(input: Pickleables) -> Pickleables:
-    rtn = pickle.loads(pickle.dumps(input))
-    return rtn
+    def success(self) -> Self:
+        self.status = CallStatus.SUCCESS
+        return self
 
 
 class Entity(Pickleable):
@@ -114,8 +113,8 @@ class Entity(Pickleable):
         self.age = 0
         self.uuid: int = uuid.uuid4().int
 
-        self.tick_log: List[TickLog] = []
-        self.last_tick_log: Optional[TickLog] = None
+        self.tick_log: List[Dict[str, Any]] = []
+        self.last_tick_log: Optional[Dict[str, Any]] = None
 
     def __static_init__(self) -> None:
 
@@ -131,10 +130,10 @@ class Entity(Pickleable):
 
         return super().__static_init__()
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> Dict[str, str]:
         """Return the entity state dict."""
-        # return {k: str(v) for k, v in pre_pickle(self.__dict__).items()}
-        return self.__getstate__()
+        return {k: str(v) for k, v in self.__getstate__().items()}
+        # return self.__getstate__()
 
     def get_state_b(self) -> bytes:
         """Return the entity pickle binary."""
@@ -170,7 +169,7 @@ class Entity(Pickleable):
         """
 
         self._world = belong
-        log = TickLog(
+        log = TickLogModel(
             age=self.age,
         )
         try:
@@ -189,13 +188,13 @@ class Entity(Pickleable):
                             target(belong)
             # AFTER
             self._tick_last(belong)
-            self.last_tick_log = log.success()
+            self.last_tick_log = log.success().dict()
 
         except Exception as e:
-            self.last_tick_log = log.exception(e)
+            self.last_tick_log = log.exception(e).dict()
         finally:
             if self._log_flag:
-                self.tick_log.append(log)
+                self.tick_log.append(log.dict())
             self.age += 1
 
     def _report_tick(self, belong: World) -> None:

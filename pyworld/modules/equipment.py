@@ -1,16 +1,10 @@
-from enum import Enum
 from threading import Lock
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, cast
 
 from pyworld.control import ControlMixin
+from pyworld.datamodels.status_code import EquipStatus
 from pyworld.entity import Entity, with_instance_lock
 from pyworld.world import World
-
-
-class EquipStatus(Enum):
-    NO_BELONG = "Equip do not have Owner"
-    CHECK_FAIL = "Some check not pass. Equipment may not work."
-    OK = "Equiped by an owner. Require satisfied. Ready to work."
 
 
 Requirement = TypeVar("Requirement")

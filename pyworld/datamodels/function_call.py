@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Self, overload
 from pydantic import BaseModel
 
 from pyworld.basic import Jsonable
+from pyworld.datamodels.status_code import CallStatus
+
 
 if TYPE_CHECKING:
     from pyworld.entity import Entity
@@ -53,13 +55,6 @@ class CallRequestModel(BaseModel):
     kwargs: Dict[str, Any]
 
 
-class CallStatus(Enum):
-    NOT_SET = "<Not_set>"
-    FAIL = "Fail"
-    WARNING = "Warning"
-    SUCCESS = "Success"
-
-
 class CallResultModel(BaseModel):
     """
     Easy way to create function safe call result return.
@@ -72,7 +67,7 @@ class CallResultModel(BaseModel):
     """
 
     stage: str = "UNKNOWN"
-    status: CallStatus = CallStatus.NOT_SET
+    status: CallStatus = CallStatus.INIT
     detail: Detail = ""
     exception: Optional[ExceptionModel] = None
 
@@ -96,7 +91,7 @@ class CallResultModel(BaseModel):
         self.exception = ExceptionModel.from_exception(e)
         return self
 
-    def success(self, message: str | Detail) -> Self:
+    def success(self, message: Detail) -> Self:
         """Create a success respond with detail=message."""
         self.status = CallStatus.SUCCESS
         self.detail = message
@@ -125,12 +120,11 @@ class ServerResultModel(CallResultModel):
         """
 
         obj_pickle_base64 = base64.b64encode(entity.get_state_b())
-        self.status = CallStatus.SUCCESS
-        self.detail = {
+        detail = {
             "dict": entity.get_state(),
             "obj_pickle_base64": str(obj_pickle_base64, encoding="utf-8"),
         }
-        return self
+        return self.success(detail)
 
     def name_not_valid(self) -> Self:
         return self.fail("Username not registered yet.")
